@@ -1,0 +1,326 @@
+/* 能源调度员端样式 */
+
+/* 工作台统计 */
+.workbench-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.workbench-stat {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.workbench-stat .stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+
+.workbench-stat .stat-info .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.workbench-stat .stat-info .stat-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* 负荷仪表盘 */
+.load-dashboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.load-gauge {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+
+.gauge-bg {
+    fill: none;
+    stroke: #e8e8e8;
+    stroke-width: 20;
+}
+
+.gauge-fill {
+    fill: none;
+    stroke: #1890ff;
+    stroke-width: 20;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    transition: stroke-dasharray 0.5s;
+}
+
+.gauge-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.gauge-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.gauge-label {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* 申请审批列表 */
+.approval-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.approval-item {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    border-left: 4px solid var(--warning-color);
+}
+
+.approval-item.urgent {
+    border-left-color: var(--error-color);
+}
+
+.approval-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.approval-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.approval-meta {
+    display: flex;
+    gap: 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.approval-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 预警列表 */
+.alert-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.alert-item {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 8px;
+    background: #fff2f0;
+    border: 1px solid #ffccc7;
+}
+
+.alert-item.warning {
+    background: #fffbe6;
+    border-color: #ffe58f;
+}
+
+.alert-icon {
+    font-size: 24px;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.alert-desc {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.alert-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* 调度面板 */
+.dispatch-panel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+}
+
+.workshop-card {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+}
+
+.workshop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.workshop-name {
+    font-weight: 600;
+}
+
+.workshop-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.workshop-status.normal {
+    background: #f6ffed;
+    color: #52c41a;
+}
+
+.workshop-status.warning {
+    background: #fffbe6;
+    color: #faad14;
+}
+
+.workshop-status.danger {
+    background: #fff2f0;
+    color: #ff4d4f;
+}
+
+.workshop-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.workshop-stat {
+    text-align: center;
+}
+
+.workshop-stat-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.workshop-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.workshop-progress {
+    height: 8px;
+    background: #e8e8e8;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.workshop-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #52c41a, #1890ff);
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+/* 工单管理 */
+.order-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.order-tab {
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    background: var(--bg-color);
+    transition: all 0.3s;
+}
+
+.order-tab:hover,
+.order-tab.active {
+    background: var(--primary-color);
+    color: #fff;
+}
+
+.order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.order-item {
+    background: var(--white);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: var(--shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.order-info {
+    flex: 1;
+}
+
+.order-id {
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.order-title {
+    font-weight: 600;
+    margin: 4px 0;
+}
+
+.order-meta {
+    display: flex;
+    gap: 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+    .workbench-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .dispatch-panel {
+        grid-template-columns: 1fr;
+    }
+}
