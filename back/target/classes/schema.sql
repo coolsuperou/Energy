@@ -157,7 +157,30 @@ CREATE TABLE IF NOT EXISTS comments (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表';
 
--- 9. 操作日志表 (operation_logs)
+-- 9. 问题反馈表 (feedbacks)
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '反馈ID',
+    feedback_no VARCHAR(20) NOT NULL UNIQUE COMMENT '反馈编号',
+    user_id BIGINT NOT NULL COMMENT '提交用户ID',
+    type ENUM('fault', 'suggestion', 'question', 'other') NOT NULL COMMENT '反馈类型',
+    location VARCHAR(100) COMMENT '相关位置',
+    urgency ENUM('normal', 'urgent', 'critical') DEFAULT 'normal' COMMENT '紧急程度',
+    description TEXT NOT NULL COMMENT '问题描述',
+    status ENUM('pending', 'processing', 'resolved', 'withdrawn') DEFAULT 'pending' COMMENT '状态',
+    reply TEXT COMMENT '处理回复',
+    handled_by BIGINT COMMENT '处理人ID',
+    handled_at DATETIME COMMENT '处理时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_feedback_no (feedback_no),
+    INDEX idx_user (user_id),
+    INDEX idx_status (status),
+    INDEX idx_type (type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='问题反馈表';
+
+-- 10. 操作日志表 (operation_logs)
 CREATE TABLE IF NOT EXISTS operation_logs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '日志ID',
     user_id BIGINT NOT NULL COMMENT '操作人ID',

@@ -1,0 +1,1 @@
+import{_ as o,c as t,b as s,o as a}from"./index-DIcO2vH9.js";const c={},n={class:"page"};function r(_,e){return a(),t("div",n,[...e[0]||(e[0]=[s("h2",null,"消息中心",-1),s("p",null,"查看系统通知和消息（待实现）",-1)])])}const d=o(c,[["render",r],["__scopeId","data-v-96e108e3"]]);export{d as default};

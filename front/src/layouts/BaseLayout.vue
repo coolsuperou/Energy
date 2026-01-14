@@ -56,6 +56,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { getUnreadCount } from '@/api/notification'
 
 const props = defineProps({
   roleName: String,
@@ -73,6 +74,18 @@ function handleLogout() {
   router.push('/login')
 }
 
+// 获取未读消息数量
+async function fetchUnreadCount() {
+  try {
+    const res = await getUnreadCount()
+    if (res.code === 200 && res.data) {
+      unreadCount.value = res.data.count || 0
+    }
+  } catch (e) {
+    console.error('获取未读消息数量失败', e)
+  }
+}
+
 // 点击外部关闭下拉菜单
 function handleClickOutside(e) {
   if (!e.target.closest('.user-dropdown')) {
@@ -80,12 +93,19 @@ function handleClickOutside(e) {
   }
 }
 
+let pollTimer = null
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  // 初始获取未读数量
+  fetchUnreadCount()
+  // 每30秒轮询一次
+  pollTimer = setInterval(fetchUnreadCount, 30000)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 

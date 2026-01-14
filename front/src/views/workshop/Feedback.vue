@@ -6,7 +6,7 @@
         <button :class="['nav-link', { active: activeTab === 'submit' }]" @click="activeTab = 'submit'">提交反馈</button>
       </li>
       <li class="nav-item">
-        <button :class="['nav-link', { active: activeTab === 'history' }]" @click="activeTab = 'history'">
+        <button :class="['nav-link', { active: activeTab === 'history' }]" @click="activeTab = 'history'; loadFeedbacks()">
           我的反馈
           <span v-if="processingCount > 0" class="badge bg-warning ms-1">{{ processingCount }}</span>
         </button>
@@ -52,7 +52,7 @@
       <div class="card">
         <div class="card-header">填写反馈内容</div>
         <div class="card-body">
-          <form class="feedback-form" @submit.prevent="submitFeedback">
+          <form class="feedback-form" @submit.prevent="submitFeedbackForm">
             <div class="row g-3 mb-3">
               <div class="col-md-6">
                 <label class="form-label">{{ form.type === 'fault' ? '故障位置' : '相关位置' }}</label>
@@ -77,25 +77,11 @@
               <label class="form-label">问题描述 <span class="text-danger">*</span></label>
               <textarea v-model="form.description" class="form-control" rows="4" placeholder="请详细描述问题情况..."></textarea>
             </div>
-            <div class="mb-4">
-              <label class="form-label">上传图片</label>
-              <div class="upload-area" @click="triggerUpload" @dragover.prevent @drop.prevent="handleDrop">
-                <input ref="fileInput" type="file" accept="image/*" multiple hidden @change="handleFileChange">
-                <i class="bi bi-cloud-arrow-up fs-1 text-muted d-block mb-2"></i>
-                <span class="text-muted">点击或拖拽上传图片</span>
-              </div>
-              <div v-if="form.images.length > 0" class="image-preview mt-2">
-                <div v-for="(img, index) in form.images" :key="index" class="preview-item">
-                  <img :src="img.url" :alt="img.name">
-                  <button type="button" class="remove-btn" @click="removeImage(index)">
-                    <i class="bi bi-x"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
             <div class="d-flex gap-2 justify-content-end">
               <button type="button" class="btn btn-outline-secondary" @click="resetForm">取消</button>
-              <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>提交反馈</button>
+              <button type="submit" class="btn btn-primary" :disabled="submitting">
+                <i class="bi bi-send me-1"></i>{{ submitting ? '提交中...' : '提交反馈' }}
+              </button>
             </div>
           </form>
         </div>
@@ -107,7 +93,7 @@
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span>我的反馈记录</span>
-          <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;">
+          <select v-model="statusFilter" class="form-select form-select-sm" style="width: auto;" @change="loadFeedbacks">
             <option value="">全部状态</option>
             <option value="pending">待处理</option>
             <option value="processing">处理中</option>
@@ -127,19 +113,38 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in filteredFeedbacks" :key="item.id">
+              <tr v-for="item in feedbacks" :key="item.id">
                 <td class="fw-semibold">{{ item.feedbackNo }}</td>
                 <td><span :class="['badge', getTypeBadgeClass(item.type)]">{{ getTypeText(item.type) }}</span></td>
                 <td class="text-truncate" style="max-width: 200px;">{{ item.description }}</td>
                 <td>{{ formatTime(item.createTime) }}</td>
                 <td><span :class="['badge-status', getStatusClass(item.status)]">{{ getStatusText(item.status) }}</span></td>
-                <td><button class="btn btn-sm btn-outline-primary" @click="viewDetail(item)">查看</button></td>
+                <td>
+                  <button class="btn btn-sm btn-outline-primary me-1" @click="viewDetail(item)">查看</button>
+                  <button v-if="item.status === 'pending'" class="btn btn-sm btn-outline-danger" @click="handleWithdraw(item)">撤回</button>
+                </td>
               </tr>
-              <tr v-if="feedbacks.length === 0">
+              <tr v-if="feedbacks.length === 0 && !loading">
                 <td colspan="6" class="text-center text-muted py-4">暂无反馈记录</td>
+              </tr>
+              <tr v-if="loading">
+                <td colspan="6" class="text-center py-4">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                  <span class="ms-2">加载中...</span>
+                </td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- 分页 -->
+        <div v-if="total > pageSize" class="card-footer d-flex justify-content-end">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="pageSize"
+            :total="total"
+            layout="prev, pager, next"
+            @current-change="loadFeedbacks"
+          />
         </div>
       </div>
     </div>
@@ -192,67 +197,105 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/stores/user'
+import { getMyFeedbacks, submitFeedback, withdrawFeedback } from '@/api/feedback'
 
+const userStore = useUserStore()
 const activeTab = ref('submit')
 const statusFilter = ref('')
 const showDetail = ref(false)
 const currentDetail = ref({})
-const fileInput = ref(null)
+const loading = ref(false)
+const submitting = ref(false)
+
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 const form = ref({
   type: 'fault',
   location: '',
   urgency: 'normal',
-  description: '',
-  images: []
+  description: ''
 })
 
-// 模拟反馈数据
-const feedbacks = ref([
-  {
-    id: 1,
-    feedbackNo: 'FB202401150001',
-    type: 'fault',
-    location: '生产线A',
-    urgency: 'urgent',
-    description: '生产线A电机异常响声，运行时有明显震动',
-    createTime: '2024-01-15 10:30:00',
-    status: 'processing',
-    reply: '已派维修人员前往检查'
-  },
-  {
-    id: 2,
-    feedbackNo: 'FB202401100002',
-    type: 'suggestion',
-    location: '配电室',
-    urgency: 'normal',
-    description: '建议增加配电室空调，夏季温度过高影响设备运行',
-    createTime: '2024-01-10 14:20:00',
-    status: 'resolved',
-    reply: '已采纳建议，计划下月安装空调设备'
-  },
-  {
-    id: 3,
-    feedbackNo: 'FB202401080003',
-    type: 'question',
-    location: '',
-    urgency: 'normal',
-    description: '请问如何查看历史用电数据？',
-    createTime: '2024-01-08 09:15:00',
-    status: 'resolved',
-    reply: '可在能耗查看页面查询历史数据'
-  }
-])
+const feedbacks = ref([])
 
 const processingCount = computed(() => {
   return feedbacks.value.filter(f => f.status === 'processing' || f.status === 'pending').length
 })
 
-const filteredFeedbacks = computed(() => {
-  if (!statusFilter.value) return feedbacks.value
-  return feedbacks.value.filter(f => f.status === statusFilter.value)
-})
+// 加载反馈列表
+async function loadFeedbacks() {
+  loading.value = true
+  try {
+    const res = await getMyFeedbacks({
+      status: statusFilter.value,
+      page: currentPage.value,
+      size: pageSize.value
+    })
+    if (res.code === 200 && res.data) {
+      feedbacks.value = res.data.records || []
+      total.value = res.data.total || 0
+    }
+  } catch (e) {
+    console.error('加载反馈列表失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 提交反馈
+async function submitFeedbackForm() {
+  if (!form.value.description.trim()) {
+    ElMessage.warning('请填写问题描述')
+    return
+  }
+  
+  submitting.value = true
+  try {
+    const res = await submitFeedback({
+      userId: userStore.user?.id,
+      type: form.value.type,
+      location: form.value.location,
+      urgency: form.value.urgency,
+      description: form.value.description
+    })
+    if (res.code === 200) {
+      ElMessage.success('反馈提交成功')
+      resetForm()
+      activeTab.value = 'history'
+      loadFeedbacks()
+    }
+  } catch (e) {
+    ElMessage.error('提交失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 撤回反馈
+async function handleWithdraw(item) {
+  try {
+    await ElMessageBox.confirm('确定要撤回该反馈吗？撤回后将无法恢复。', '撤回确认', {
+      confirmButtonText: '确定撤回',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    const res = await withdrawFeedback(item.id, userStore.user?.id)
+    if (res.code === 200) {
+      ElMessage.success('反馈已撤回')
+      loadFeedbacks()
+    }
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '撤回失败')
+    }
+  }
+}
 
 function getTypeText(type) {
   const map = { fault: '故障报修', suggestion: '用电建议', question: '咨询问题', other: '其他反馈' }
@@ -265,12 +308,12 @@ function getTypeBadgeClass(type) {
 }
 
 function getStatusText(status) {
-  const map = { pending: '待处理', processing: '处理中', resolved: '已处理' }
+  const map = { pending: '待处理', processing: '处理中', resolved: '已处理', withdrawn: '已撤回' }
   return map[status] || status
 }
 
 function getStatusClass(status) {
-  const map = { pending: 'badge-pending', processing: 'badge-processing', resolved: 'badge-approved' }
+  const map = { pending: 'badge-pending', processing: 'badge-processing', resolved: 'badge-approved', withdrawn: 'badge-rejected' }
   return map[status] || ''
 }
 
@@ -281,78 +324,21 @@ function getUrgencyText(urgency) {
 
 function formatTime(time) {
   if (!time) return '-'
-  return time.substring(0, 16)
-}
-
-function triggerUpload() {
-  fileInput.value?.click()
-}
-
-function handleFileChange(e) {
-  const files = e.target.files
-  if (files) {
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file)
-        form.value.images.push({ name: file.name, url, file })
-      }
-    })
-  }
-}
-
-function handleDrop(e) {
-  const files = e.dataTransfer.files
-  if (files) {
-    Array.from(files).forEach(file => {
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file)
-        form.value.images.push({ name: file.name, url, file })
-      }
-    })
-  }
-}
-
-function removeImage(index) {
-  URL.revokeObjectURL(form.value.images[index].url)
-  form.value.images.splice(index, 1)
+  return time.substring(0, 16).replace('T', ' ')
 }
 
 function resetForm() {
-  form.value = { type: 'fault', location: '', urgency: 'normal', description: '', images: [] }
-}
-
-function submitFeedback() {
-  if (!form.value.description.trim()) {
-    ElMessage.warning('请填写问题描述')
-    return
-  }
-  
-  // 生成反馈编号
-  const now = new Date()
-  const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '')
-  const no = `FB${dateStr}${String(feedbacks.value.length + 1).padStart(4, '0')}`
-  
-  feedbacks.value.unshift({
-    id: Date.now(),
-    feedbackNo: no,
-    type: form.value.type,
-    location: form.value.location,
-    urgency: form.value.urgency,
-    description: form.value.description,
-    createTime: now.toISOString().slice(0, 19).replace('T', ' '),
-    status: 'pending',
-    reply: ''
-  })
-  
-  ElMessage.success('反馈提交成功')
-  resetForm()
-  activeTab.value = 'history'
+  form.value = { type: 'fault', location: '', urgency: 'normal', description: '' }
 }
 
 function viewDetail(item) {
   currentDetail.value = item
   showDetail.value = true
 }
+
+onMounted(() => {
+  loadFeedbacks()
+})
 </script>
 
 <style lang="scss">

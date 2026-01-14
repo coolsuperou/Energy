@@ -225,3 +225,96 @@
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+
+/* ========== Vue Login.vue 组件样式 ========== */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a192f 0%, #0d1126 100%);
+}
+
+.login-card {
+  width: 420px;
+  padding: 48px 40px;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 60px rgba(0, 212, 255, 0.15);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+  
+  .logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(102, 126, 234, 0.2));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    border: 1px solid rgba(0, 212, 255, 0.3);
+  }
+  
+  h1 {
+    font-size: 24px;
+    background: linear-gradient(135deg, #00d4ff, #667eea);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  
+  p {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 13px;
+  }
+}
+
+.login-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  letter-spacing: 4px;
+  background: linear-gradient(135deg, #00d4ff, #667eea);
+  border: none;
+}
+
+.register-link {
+  text-align: center;
+  margin-top: 16px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  
+  a {
+    color: #00d4ff;
+    cursor: pointer;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+:deep(.el-input__wrapper) {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  box-shadow: none;
+  
+  &:hover, &.is-focus {
+    border-color: rgba(0, 212, 255, 0.6);
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+  }
+}
+
+:deep(.el-input__inner) {
+  color: #fff;
+  &::placeholder { color: rgba(255, 255, 255, 0.4); }
+}
+
+:deep(.el-input__prefix) {
+  color: rgba(0, 212, 255, 0.6);
+}

@@ -1,0 +1,1 @@
+import{_ as s,c as t,b as o,o as a}from"./index-DIcO2vH9.js";const c={},n={class:"page"};function r(_,e){return a(),t("div",n,[...e[0]||(e[0]=[o("h2",null,"个人中心",-1),o("p",null,"考勤打卡、工作量统计（待实现）",-1)])])}const d=s(c,[["render",r],["__scopeId","data-v-d38f77a4"]]);export{d as default};

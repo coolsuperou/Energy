@@ -1,0 +1,1 @@
+import{_ as o,c as t,b as s,o as c}from"./index-DIcO2vH9.js";const a={},n={class:"page"};function r(_,e){return c(),t("div",n,[...e[0]||(e[0]=[s("h2",null,"AI智能分析",-1),s("p",null,"能耗预测、异常检测、优化建议（待实现）",-1)])])}const d=o(a,[["render",r],["__scopeId","data-v-22c820f0"]]);export{d as default};

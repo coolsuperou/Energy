@@ -1,0 +1,1 @@
+import{_ as o,c as t,b as s,o as c}from"./index-DIcO2vH9.js";const a={},n={class:"page"};function r(_,e){return c(),t("div",n,[...e[0]||(e[0]=[s("h2",null,"用户管理",-1),s("p",null,"用户列表、角色分配（待实现）",-1)])])}const d=o(a,[["render",r],["__scopeId","data-v-b146ce44"]]);export{d as default};

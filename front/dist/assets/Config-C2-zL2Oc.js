@@ -1,0 +1,1 @@
+import{_ as s,c as t,b as o,o as a}from"./index-DIcO2vH9.js";const n={},c={class:"page"};function r(_,e){return a(),t("div",c,[...e[0]||(e[0]=[o("h2",null,"系统配置",-1),o("p",null,"电价参数、配额限制等配置（待实现）",-1)])])}const d=s(n,[["render",r],["__scopeId","data-v-28ae9551"]]);export{d as default};

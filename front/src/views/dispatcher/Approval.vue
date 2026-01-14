@@ -185,13 +185,6 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.approval-page {
-  padding: 20px;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+<style lang="scss">
+@import '@/styles/dispatcher.scss';
 </style>

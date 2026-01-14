@@ -1,0 +1,1 @@
+import{_ as o,c as t,b as s,o as a}from"./index-DIcO2vH9.js";const n={},c={class:"page"};function r(_,e){return a(),t("div",c,[...e[0]||(e[0]=[s("h2",null,"数据分析",-1),s("p",null,"能耗分析报表（待实现）",-1)])])}const l=o(n,[["render",r],["__scopeId","data-v-d50b1ed3"]]);export{l as default};

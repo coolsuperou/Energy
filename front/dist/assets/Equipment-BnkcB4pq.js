@@ -1,0 +1,1 @@
+import{_ as t,c as o,b as s,o as c}from"./index-DIcO2vH9.js";const n={},a={class:"page"};function r(_,e){return c(),o("div",a,[...e[0]||(e[0]=[s("h2",null,"设备管理",-1),s("p",null,"设备列表和状态（待实现）",-1)])])}const l=t(n,[["render",r],["__scopeId","data-v-cdd35f07"]]);export{l as default};

@@ -161,6 +161,15 @@ INSERT INTO comments (related_type, related_id, user_id, content) VALUES
 ('task', 3, 2, '已安排采购新轴承，请继续监控设备状态');
 
 -- ============================================
+-- 8. 插入示例反馈数据
+-- ============================================
+INSERT INTO feedbacks (feedback_no, user_id, type, location, urgency, description, status, reply, handled_by, handled_at) VALUES
+('FB202601130004', 8, 'fault', '生产线A', 'normal', '111', 'pending', NULL, NULL, NULL),
+('FB202401150001', 8, 'fault', '生产线A', 'urgent', '生产线A电机异常响声，运行时有明显震动', 'processing', '已派维修人员前往检查', 2, NOW()),
+('FB202401100002', 8, 'suggestion', '配电室', 'normal', '建议增加配电室空调，夏季温度过高影响设备运行', 'resolved', '已采纳建议，计划下月安装空调设备', 2, DATE_SUB(NOW(), INTERVAL 5 DAY)),
+('FB202401080003', 8, 'question', NULL, 'normal', '请问如何查看历史用电数据？', 'resolved', '可在能耗查看页面查询历史数据', 2, DATE_SUB(NOW(), INTERVAL 7 DAY));
+
+-- ============================================
 -- 数据初始化完成
 -- ============================================
 -- 查询统计信息

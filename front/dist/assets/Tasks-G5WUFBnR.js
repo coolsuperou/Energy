@@ -1,0 +1,1 @@
+import{_ as o,c as t,b as s,o as a}from"./index-DIcO2vH9.js";const c={},n={class:"page"};function r(_,e){return a(),t("div",n,[...e[0]||(e[0]=[s("h2",null,"任务管理",-1),s("p",null,"创建和管理巡检任务（待实现）",-1)])])}const l=o(c,[["render",r],["__scopeId","data-v-7072603d"]]);export{l as default};

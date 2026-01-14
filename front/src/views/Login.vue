@@ -1,67 +1,130 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <div class="header">
-        <div class="logo">⚡</div>
-        <h1>智能电能监控平台</h1>
-        <p>Smart Energy Monitoring Platform</p>
-      </div>
+  <div class="login-page">
+    <!-- 背景 -->
+    <div class="background-container">
+      <div class="background-overlay"></div>
+    </div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
 
-      <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin">
-        <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" prefix-icon="User" size="large" />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" 
-                    prefix-icon="Lock" size="large" show-password />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" native-type="submit" :loading="loading" size="large" class="login-btn">
-            登 录
-          </el-button>
-        </el-form-item>
-      </el-form>
+    <div class="main-container">
+      <div class="login-card">
+        <div class="header-section">
+          <div class="logo-icon">⚡</div>
+          <h1 class="main-title">智能电能监控平台</h1>
+          <p class="subtitle">Smart Energy Monitoring Platform</p>
+        </div>
 
-      <div class="register-link">
-        还没有账号？<a @click="showRegister = true">立即注册</a>
+        <!-- 错误提示 -->
+        <div class="error-message" v-if="errorMsg">
+          <i class="bi bi-exclamation-circle"></i>
+          <span>{{ errorMsg }}</span>
+        </div>
+
+        <form @submit.prevent="handleLogin">
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-person input-icon"></i>
+              <input type="text" v-model="form.username" class="form-input" placeholder="请输入用户名" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-lock input-icon"></i>
+              <div class="password-wrapper">
+                <input :type="showPwd ? 'text' : 'password'" v-model="form.password" class="form-input" placeholder="请输入密码" required>
+                <button type="button" class="show-password-btn" @click="showPwd = !showPwd">
+                  <i :class="showPwd ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="form-options">
+            <label class="remember-me">
+              <input type="checkbox" v-model="remember">
+              <span>记住我</span>
+            </label>
+            <a href="#" class="forgot-link">忘记密码？</a>
+          </div>
+          <button type="submit" class="login-btn" :disabled="loading">
+            {{ loading ? '登录中...' : '登 录' }}
+          </button>
+          <div class="register-link">
+            还没有账号？<a href="#" @click.prevent="showRegister = true">立即注册</a>
+          </div>
+        </form>
       </div>
     </div>
 
     <!-- 注册弹窗 -->
-    <el-dialog v-model="showRegister" title="注册账号" width="400px">
-      <el-form ref="regFormRef" :model="regForm" :rules="regRules">
-        <el-form-item prop="username">
-          <el-input v-model="regForm.username" placeholder="用户名" prefix-icon="User" />
-        </el-form-item>
-        <el-form-item prop="name">
-          <el-input v-model="regForm.name" placeholder="真实姓名" prefix-icon="UserFilled" />
-        </el-form-item>
-        <el-form-item prop="email">
-          <el-input v-model="regForm.email" placeholder="邮箱" prefix-icon="Message" />
-        </el-form-item>
-        <el-form-item prop="phone">
-          <el-input v-model="regForm.phone" placeholder="手机号" prefix-icon="Phone" />
-        </el-form-item>
-        <el-form-item prop="department">
-          <el-input v-model="regForm.department" placeholder="部门" prefix-icon="OfficeBuilding" />
-        </el-form-item>
-        <el-form-item prop="password">
-          <el-input v-model="regForm.password" type="password" placeholder="密码" prefix-icon="Lock" show-password />
-        </el-form-item>
-        <el-form-item prop="confirmPassword">
-          <el-input v-model="regForm.confirmPassword" type="password" placeholder="确认密码" prefix-icon="Lock" show-password />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showRegister = false">取消</el-button>
-        <el-button type="primary" :loading="regLoading" @click="handleRegister">注册</el-button>
-      </template>
-    </el-dialog>
+    <div class="modal-overlay" v-if="showRegister" @click.self="showRegister = false">
+      <div class="register-card">
+        <div class="modal-header">
+          <h3>注册账号</h3>
+          <button class="close-btn" @click="showRegister = false">&times;</button>
+        </div>
+        <div class="success-message" v-if="regSuccess">
+          <i class="bi bi-check-circle"></i>
+          <span>注册成功！请等待管理员分配角色后登录</span>
+        </div>
+        <div class="error-message" v-if="regError">
+          <i class="bi bi-exclamation-circle"></i>
+          <span>{{ regError }}</span>
+        </div>
+        <form @submit.prevent="handleRegister">
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-person input-icon"></i>
+              <input type="text" v-model="regForm.username" class="form-input" placeholder="请输入用户名" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-person-badge input-icon"></i>
+              <input type="text" v-model="regForm.name" class="form-input" placeholder="请输入真实姓名" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-envelope input-icon"></i>
+              <input type="email" v-model="regForm.email" class="form-input" placeholder="请输入邮箱">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-phone input-icon"></i>
+              <input type="tel" v-model="regForm.phone" class="form-input" placeholder="请输入手机号">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-building input-icon"></i>
+              <input type="text" v-model="regForm.department" class="form-input" placeholder="请输入部门">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-lock input-icon"></i>
+              <input type="password" v-model="regForm.password" class="form-input" placeholder="请输入密码（6-20位）" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="input-with-icon">
+              <i class="bi bi-lock-fill input-icon"></i>
+              <input type="password" v-model="regForm.confirmPassword" class="form-input" placeholder="请确认密码" required>
+            </div>
+          </div>
+          <button type="submit" class="login-btn" :disabled="regLoading">
+            {{ regLoading ? '注册中...' : '注 册' }}
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -70,26 +133,25 @@ import { register } from '@/api/auth'
 const router = useRouter()
 const userStore = useUserStore()
 
-const formRef = ref()
-const loading = ref(false)
 const form = reactive({ username: '', password: '' })
-const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
+const loading = ref(false)
+const errorMsg = ref('')
+const showPwd = ref(false)
+const remember = ref(false)
 
 async function handleLogin() {
-  await formRef.value.validate()
+  errorMsg.value = ''
+  if (!form.username || !form.password) {
+    errorMsg.value = '请输入用户名和密码'
+    return
+  }
   loading.value = true
   try {
-    const data = await userStore.doLogin(form.username, form.password)
+    await userStore.doLogin(form.username, form.password)
     ElMessage.success('登录成功')
-    // 获取跳转路径并跳转
-    const targetPath = userStore.homePage
-    console.log('登录成功，跳转到:', targetPath, '用户数据:', data)
-    await router.push(targetPath)
+    await router.push(userStore.homePage)
   } catch (e) {
-    ElMessage.error(e.message || '登录失败')
+    errorMsg.value = e.message || '登录失败'
   } finally {
     loading.value = false
   }
@@ -97,126 +159,380 @@ async function handleLogin() {
 
 // 注册
 const showRegister = ref(false)
-const regFormRef = ref()
 const regLoading = ref(false)
+const regSuccess = ref(false)
+const regError = ref('')
 const regForm = reactive({
   username: '', name: '', email: '', phone: '', department: '', password: '', confirmPassword: ''
 })
-const regRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }, { min: 6, message: '密码至少6位', trigger: 'blur' }],
-  confirmPassword: [{ required: true, message: '请确认密码', trigger: 'blur' }]
-}
 
 async function handleRegister() {
-  await regFormRef.value.validate()
+  regError.value = ''
+  regSuccess.value = false
   if (regForm.password !== regForm.confirmPassword) {
-    ElMessage.error('两次密码不一致')
+    regError.value = '两次输入的密码不一致'
     return
   }
   regLoading.value = true
   try {
     await register(regForm)
-    ElMessage.success('注册成功，请等待管理员分配角色')
-    showRegister.value = false
+    regSuccess.value = true
+    setTimeout(() => { showRegister.value = false }, 3000)
   } catch (e) {
-    // 错误已在拦截器处理
+    regError.value = e.message || '注册失败'
   } finally {
     regLoading.value = false
   }
 }
+
+// 鼠标视差效果
+function handleMouseMove(e) {
+  const orbs = document.querySelectorAll('.orb')
+  const mouseX = e.clientX / window.innerWidth
+  const mouseY = e.clientY / window.innerHeight
+  orbs.forEach((orb, index) => {
+    const speed = (index + 1) * 20
+    const x = (mouseX - 0.5) * speed
+    const y = (mouseY - 0.5) * speed
+    orb.style.transform = `translate(${x}px, ${y}px)`
+  })
+}
+
+onMounted(() => {
+  document.addEventListener('mousemove', handleMouseMove)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('mousemove', handleMouseMove)
+})
 </script>
 
 <style lang="scss" scoped>
-.login-container {
+.login-page {
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.background-container {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+}
+
+.background-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(102, 126, 234, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+    linear-gradient(135deg, rgba(10, 25, 47, 0.95) 0%, rgba(13, 17, 38, 0.98) 100%);
+}
+
+.orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  pointer-events: none;
+  animation: orbFloat 8s ease-in-out infinite;
+  z-index: 0;
+}
+
+.orb-1 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.4) 0%, transparent 70%);
+  top: -200px; right: -100px;
+}
+
+.orb-2 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.3) 0%, transparent 70%);
+  bottom: -150px; left: -50px;
+  animation-delay: 2s;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -30px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+.main-container {
+  position: relative;
+  z-index: 1;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0a192f 0%, #0d1126 100%);
+  padding: 40px 20px;
 }
 
 .login-card {
-  width: 420px;
+  width: 100%;
+  max-width: 480px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  border-radius: 32px;
   padding: 48px 40px;
-  background: rgba(15, 23, 42, 0.9);
-  border-radius: 24px;
+  box-shadow: 
+    0 0 60px rgba(0, 212, 255, 0.15),
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 0 60px rgba(0, 212, 255, 0.15);
+  animation: fadeInUp 0.8s ease-out;
 }
 
-.header {
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.header-section {
   text-align: center;
-  margin-bottom: 32px;
-  
-  .logo {
-    width: 64px;
-    height: 64px;
-    margin: 0 auto 16px;
-    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(102, 126, 234, 0.2));
-    border-radius: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    border: 1px solid rgba(0, 212, 255, 0.3);
+  margin-bottom: 36px;
+}
+
+.logo-icon {
+  width: 72px; height: 72px;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(102, 126, 234, 0.2) 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  margin: 0 auto 20px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+}
+
+.main-title {
+  font-size: 26px;
+  font-weight: 600;
+  background: linear-gradient(135deg, #00d4ff 0%, #667eea 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.form-group { margin-bottom: 20px; }
+
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 18px;
+  color: rgba(0, 212, 255, 0.6);
+  z-index: 2;
+}
+
+.form-input {
+  width: 100%;
+  height: 52px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1.5px solid rgba(0, 212, 255, 0.3);
+  border-radius: 12px;
+  padding: 0 18px 0 50px;
+  font-size: 15px;
+  color: #ffffff;
+  transition: all 0.3s ease;
+  outline: none;
+
+  &::placeholder { color: rgba(255, 255, 255, 0.4); }
+
+  &:focus {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: rgba(0, 212, 255, 0.7);
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.15), 0 0 20px rgba(0, 212, 255, 0.3);
   }
-  
-  h1 {
-    font-size: 24px;
-    background: linear-gradient(135deg, #00d4ff, #667eea);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 8px;
+}
+
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  width: 100%;
+
+  .form-input { padding-right: 50px; }
+}
+
+.show-password-btn {
+  position: absolute;
+  right: 16px;
+  background: none;
+  border: none;
+  color: rgba(0, 212, 255, 0.6);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(0, 212, 255, 0.1);
+    color: rgba(0, 212, 255, 0.9);
   }
-  
-  p {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 13px;
-  }
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+
+  input { accent-color: #00d4ff; }
+}
+
+.forgot-link {
+  color: rgba(0, 212, 255, 0.8);
+  font-size: 14px;
+  text-decoration: none;
+
+  &:hover { color: #00d4ff; }
 }
 
 .login-btn {
   width: 100%;
-  height: 48px;
-  font-size: 16px;
-  letter-spacing: 4px;
-  background: linear-gradient(135deg, #00d4ff, #667eea);
+  height: 54px;
+  background: linear-gradient(135deg, #00d4ff 0%, #667eea 100%);
   border: none;
+  border-radius: 14px;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 6px;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.4);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(0, 212, 255, 0.6);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #fca5a5;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .register-link {
   text-align: center;
-  margin-top: 16px;
+  margin-top: 20px;
   color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
-  
+
   a {
     color: #00d4ff;
-    cursor: pointer;
+    text-decoration: none;
+    font-weight: 500;
+
     &:hover { text-decoration: underline; }
   }
 }
 
-:deep(.el-input__wrapper) {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 8px;
-  box-shadow: none;
-  
-  &:hover, &.is-focus {
-    border-color: rgba(0, 212, 255, 0.6);
-    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 60px rgba(0, 212, 255, 0.2);
+  animation: fadeInUp 0.4s ease-out;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+
+  h3 {
+    color: #00d4ff;
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
   }
 }
 
-:deep(.el-input__inner) {
-  color: #fff;
-  &::placeholder { color: rgba(255, 255, 255, 0.4); }
+.close-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 28px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.3s;
+
+  &:hover { color: #00d4ff; transform: rotate(90deg); }
 }
 
-:deep(.el-input__prefix) {
-  color: rgba(0, 212, 255, 0.6);
+.success-message {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  color: #86efac;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .login-card { padding: 36px 24px; border-radius: 24px; }
+  .main-title { font-size: 22px; }
 }
 </style>
