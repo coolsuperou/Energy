@@ -1,38 +1,40 @@
 package org.example.back.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 消息通知实体
+ * 消息通知实体类
+ * 系统自动触发的业务通知
+ * 包括申请审批通知、任务分配通知、预警通知等
  */
+@Data
 @TableName("notifications")
 public class Notification {
 
+    /** 主键ID */
     @TableId(type = IdType.AUTO)
     private Long id;
+    
+    /** 接收人用户ID */
     private Long userId;
-    private String type;  // approval, task, alert, system
+    
+    /** 通知类型 approval审批通知 task任务通知 alert预警通知 system系统通知 */
+    private String type;
+    
+    /** 通知标题 */
     private String title;
+    
+    /** 通知内容 */
     private String content;
+    
+    /** 关联业务ID 如申请ID、任务ID等 */
     private Long relatedId;
+    
+    /** 是否已读 */
     private Boolean isRead;
+    
+    /** 创建时间 */
     private LocalDateTime createdAt;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
-    public Long getRelatedId() { return relatedId; }
-    public void setRelatedId(Long relatedId) { this.relatedId = relatedId; }
-    public Boolean getIsRead() { return isRead; }
-    public void setIsRead(Boolean isRead) { this.isRead = isRead; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

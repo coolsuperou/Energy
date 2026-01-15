@@ -172,5 +172,5 @@ const stats = ref({
 </script>
 
 <style lang="scss">
-@import '@/styles/admin.scss';
+@use '@/styles/admin.scss';
 </style>

@@ -33,6 +33,9 @@ const routes = [
     children: [
       { path: '', name: 'DispatcherHome', component: () => import('@/views/dispatcher/Index.vue') },
       { path: 'approval', name: 'Approval', component: () => import('@/views/dispatcher/Approval.vue') },
+      { path: 'dispatch', name: 'Dispatch', component: () => import('@/views/dispatcher/Dispatch.vue') },
+      { path: 'alert', name: 'Alert', component: () => import('@/views/dispatcher/Alert.vue') },
+      { path: 'order', name: 'Order', component: () => import('@/views/dispatcher/Order.vue') },
       { path: 'tasks', name: 'TaskManage', component: () => import('@/views/dispatcher/Tasks.vue') },
       { path: 'message', name: 'DispatcherMessage', component: () => import('@/views/common/Message.vue') }
     ]

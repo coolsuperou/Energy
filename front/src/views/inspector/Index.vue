@@ -96,5 +96,5 @@
 </script>
 
 <style lang="scss">
-@import '@/styles/inspector.scss';
+@use '@/styles/inspector.scss';
 </style>

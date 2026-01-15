@@ -1,34 +1,39 @@
 package org.example.back.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import lombok.Data;
 import java.time.LocalDateTime;
 
+/**
+ * 操作日志实体类
+ * 记录系统管理员和重要操作的日志
+ * 用于审计和安全追踪
+ */
+@Data
 @TableName("operation_logs")
 public class OperationLog {
 
+    /** 主键ID */
     @TableId(type = IdType.AUTO)
     private Long id;
+    
+    /** 操作人用户ID */
     private Long userId;
+    
+    /** 操作类型 如login登录 create创建 update更新 delete删除 */
     private String operationType;
+    
+    /** 操作描述 */
     private String operationDesc;
+    
+    /** 操作IP地址 */
     private String ipAddress;
+    
+    /** 创建时间 自动填充 */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+    
+    /** 操作人姓名 非数据库字段 用于前端显示 */
     @TableField(exist = false)
     private String userName;
-
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public String getOperationType() { return operationType; }
-    public void setOperationType(String operationType) { this.operationType = operationType; }
-    public String getOperationDesc() { return operationDesc; }
-    public void setOperationDesc(String operationDesc) { this.operationDesc = operationDesc; }
-    public String getIpAddress() { return ipAddress; }
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    public String getUserName() { return userName; }
-    public void setUserName(String userName) { this.userName = userName; }
 }

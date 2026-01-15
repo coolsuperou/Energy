@@ -420,5 +420,5 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
-@import '@/styles/workshop.scss';
+@use '@/styles/workshop.scss';
 </style>

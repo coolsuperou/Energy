@@ -160,5 +160,5 @@
 </script>
 
 <style lang="scss">
-@import '@/styles/manager.scss';
+@use '@/styles/manager.scss';
 </style>

@@ -70,10 +70,7 @@
           <small class="text-muted">更新于 {{ currentTime }}</small>
         </div>
         <div class="card-body">
-          <div class="chart-placeholder">
-            <i class="bi bi-graph-up"></i>
-            <span>功率趋势图表</span>
-          </div>
+          <div ref="powerChartRef" style="height: 200px;"></div>
         </div>
       </div>
 
@@ -143,7 +140,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import * as echarts from 'echarts'
 import { getMyApplications } from '@/api/application'
 
 const stats = ref({
@@ -156,6 +154,9 @@ const stats = ref({
 
 const currentTime = ref('')
 const recentApplications = ref([])
+const powerChartRef = ref(null)
+let powerChart = null
+const approvedApplies = ref([])
 
 function getStatusClass(status) {
   const map = {
@@ -177,26 +178,161 @@ function getStatusText(status) {
   return map[status] || status
 }
 
+// 根据已批准申请生成功率数据
+function generatePowerData() {
+  const data = []
+  const now = new Date()
+  const currentHour = now.getHours()
+  
+  for (let h = 0; h < 24; h++) {
+    let basePower = 15 // 基础负载
+    
+    // 叠加已批准申请的功率
+    approvedApplies.value.forEach(apply => {
+      if (h >= apply.start && h < apply.end) {
+        basePower += apply.power * (0.85 + Math.random() * 0.2)
+      }
+    })
+    
+    // 未来时段使用预估值
+    if (h > currentHour) {
+      basePower = h >= 8 && h < 18 ? 60 + Math.random() * 20 : 15
+    }
+    
+    data.push(Math.round(basePower * 10) / 10)
+  }
+  return data
+}
+
+// 渲染功率曲线图
+function renderPowerChart() {
+  if (!powerChart) return
+  
+  const powerData = generatePowerData()
+  const currentHour = new Date().getHours()
+  const hours = Array.from({ length: 24 }, (_, i) => i + ':00')
+  
+  // 更新当前功率统计
+  stats.value.currentPower = powerData[currentHour].toFixed(1)
+  
+  // 计算今日能耗
+  const totalEnergy = powerData.slice(0, currentHour + 1).reduce((sum, p) => sum + p, 0)
+  stats.value.todayEnergy = Math.round(totalEnergy).toLocaleString()
+  
+  powerChart.setOption({
+    tooltip: { 
+      trigger: 'axis', 
+      formatter: '{b}<br/>功率: {c} kW' 
+    },
+    grid: { 
+      left: '3%', 
+      right: '4%', 
+      bottom: '3%', 
+      top: '10%', 
+      containLabel: true 
+    },
+    xAxis: { 
+      type: 'category', 
+      data: hours, 
+      axisLabel: { interval: 2, fontSize: 10 }
+    },
+    yAxis: { 
+      type: 'value', 
+      name: 'kW',
+      nameTextStyle: { fontSize: 10 }
+    },
+    series: [
+      {
+        name: '实际功率',
+        type: 'line',
+        smooth: true,
+        data: powerData.slice(0, currentHour + 1),
+        lineStyle: { color: '#3b82f6', width: 2 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
+          ])
+        },
+        symbol: 'circle',
+        symbolSize: 4
+      },
+      {
+        name: '预测功率',
+        type: 'line',
+        smooth: true,
+        data: powerData.map((v, i) => i > currentHour ? v : null),
+        lineStyle: { color: '#94a3b8', type: 'dashed', width: 2 },
+        symbol: 'none'
+      }
+    ]
+  })
+}
+
 async function loadData() {
   try {
-    const res = await getMyApplications({ page: 1, size: 5 })
+    const res = await getMyApplications({ page: 1, size: 100 })
     if (res && res.code === 200 && res.data) {
-      recentApplications.value = res.data.records || res.data || []
+      const list = res.data.records || res.data || []
+      recentApplications.value = list.slice(0, 5)
+      
+      // 统计待处理申请数
+      const pending = list.filter(a => a.status === 'PENDING')
+      stats.value.pendingApply = pending.length
+      stats.value.pendingApproval = pending.length
+      
+      // 提取已批准的申请用于功率曲线
+      const approved = list.filter(a => (a.status || '').toUpperCase() === 'APPROVED')
+      approvedApplies.value = approved.map(a => {
+        const startH = parseInt((a.startTime || '08:00').split(':')[0])
+        const endH = parseInt((a.endTime || '18:00').split(':')[0])
+        return {
+          id: a.applicationNo,
+          equipment: a.equipmentName || '设备',
+          power: a.power || 50,
+          start: startH,
+          end: endH
+        }
+      })
+      
+      // 渲染图表
+      renderPowerChart()
     }
   } catch (e) {
-    // 接口暂时不可用，使用空数据
-    console.warn('加载申请列表失败，使用空数据', e)
+    console.warn('加载申请列表失败', e)
     recentApplications.value = []
+    renderPowerChart()
   }
 }
 
 onMounted(() => {
   const now = new Date()
   currentTime.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+  
+  // 初始化图表
+  if (powerChartRef.value) {
+    powerChart = echarts.init(powerChartRef.value)
+  }
+  
   loadData()
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleResize)
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (powerChart) {
+    powerChart.dispose()
+    powerChart = null
+  }
+})
+
+function handleResize() {
+  powerChart?.resize()
+}
 </script>
 
 <style lang="scss">
-@import '@/styles/workshop.scss';
+@use '@/styles/workshop.scss';
 </style>
