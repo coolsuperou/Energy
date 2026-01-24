@@ -129,11 +129,40 @@ INSERT INTO applications (application_no, user_id, workshop_id, equipment_id, po
 -- ============================================
 -- 5. 插入示例巡检任务数据
 -- ============================================
-INSERT INTO tasks (task_type, title, description, equipment_id, assigned_to, assigned_by, priority, status, due_date) VALUES
-('inspection', '数控机床-01 日常巡检', '检查设备运行状态、润滑情况、温度等', 1, 4, 2, 'medium', 'pending', CURDATE()),
-('inspection', '激光切割机-02 日常巡检', '检查激光头、冷却系统、气路系统', 8, 5, 2, 'medium', 'pending', CURDATE()),
-('maintenance', '数控机床-04 预防性维护', '设备显示警告状态，需要进行预防性维护', 7, 4, 2, 'high', 'in_progress', CURDATE()),
-('inspection', '热处理炉-01 安全检查', '检查炉体密封、温控系统、安全装置', 16, 6, 2, 'high', 'pending', CURDATE());
+INSERT INTO tasks (task_type, title, description, equipment_id, assigned_to, assigned_by, priority, status, due_date, completed_at, report) VALUES
+-- 待派单任务（pending - 调度员创建但未分派）
+('inspection', '数控机床-01 日常巡检', '检查设备运行状态、润滑情况、温度等', 1, NULL, 2, 'normal', 'pending', CURDATE(), NULL, NULL),
+('inspection', '冲压机-01 定期检查', '检查液压系统、安全防护装置、噪音情况', 5, NULL, 2, 'normal', 'pending', DATE_ADD(CURDATE(), INTERVAL 1 DAY), NULL, NULL),
+('maintenance', '磨床-01 保养维护', '更换润滑油、清洁冷却系统、检查精度', 9, NULL, 2, 'low', 'pending', DATE_ADD(CURDATE(), INTERVAL 2 DAY), NULL, NULL),
+
+-- 已分派待接单任务（assigned - 已分派给巡检员但未开始）
+('inspection', '激光切割机-01 日常巡检', '检查激光头、冷却系统、气路系统、镜片清洁度', 3, 4, 2, 'normal', 'assigned', CURDATE(), NULL, NULL),
+('repair', '数控机床-04 故障维修', '设备显示警告状态，主轴温度过高，需紧急处理', 7, 4, 2, 'urgent', 'assigned', CURDATE(), NULL, NULL),
+('inspection', '焊接机器人-01 安全检查', '检查焊接臂运动轨迹、气体保护系统、电气安全', 4, 5, 2, 'normal', 'assigned', CURDATE(), NULL, NULL),
+('maintenance', '激光切割机-02 预防性维护', '更换冷却液、清洁光路系统、校准切割精度', 8, 5, 2, 'high', 'assigned', CURDATE(), NULL, NULL),
+('inspection', '钻床-01 日常巡检', '检查主轴跳动、夹具磨损、切削液状态', 10, 6, 2, 'normal', 'assigned', DATE_ADD(CURDATE(), INTERVAL 1 DAY), NULL, NULL),
+
+-- 进行中任务（in_progress - 巡检员已接单正在处理）
+('maintenance', '数控机床-02 预防性维护', '更换导轨润滑油、检查伺服电机、校准刀具补偿', 2, 4, 2, 'high', 'in_progress', CURDATE(), NULL, NULL),
+('inspection', '装配生产线-01 全面检查', '检查传送带张力、气动系统、电气控制柜', 11, 5, 2, 'normal', 'in_progress', CURDATE(), NULL, NULL),
+('repair', '喷涂设备-01 故障处理', '喷枪堵塞，雾化效果不佳，需清洗更换喷嘴', 12, 6, 2, 'urgent', 'in_progress', CURDATE(), NULL, NULL),
+
+-- 已完成任务（completed - 今日完成）
+('inspection', '热处理炉-01 安全检查', '检查炉体密封、温控系统、安全装置', 16, 4, 2, 'high', 'completed', CURDATE(), NOW(), '设备运行正常，温控系统精度良好，安全装置有效'),
+('maintenance', '锻压机-01 定期保养', '更换液压油、清洁滤芯、检查压力表', 15, 5, 2, 'normal', 'completed', CURDATE(), NOW(), '已完成保养，液压系统压力稳定，设备运行平稳'),
+('inspection', '抛光机-01 日常检查', '检查抛光轮磨损、电机温度、粉尘收集系统', 17, 6, 2, 'normal', 'completed', CURDATE(), NOW(), '抛光轮磨损正常，建议下月更换，粉尘收集系统工作良好'),
+
+-- 历史已完成任务（completed - 昨日及更早）
+('inspection', '数控机床-03 日常巡检', '检查设备运行状态、刀库换刀、冷却系统', 6, 4, 2, 'normal', 'completed', DATE_SUB(CURDATE(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), '设备运行正常，刀库换刀顺畅，冷却液需补充'),
+('repair', '烘干设备-01 温控故障', '温度传感器故障，温度显示不准确', 13, 5, 2, 'urgent', 'completed', DATE_SUB(CURDATE(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), '已更换温度传感器，重新校准温控系统，设备恢复正常'),
+('maintenance', '检测设备-01 精度校准', '定期校准检测精度，更新标准件', 14, 6, 2, 'high', 'completed', DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), '完成精度校准，检测误差在允许范围内，已更新标准件'),
+('inspection', '清洗设备-01 日常检查', '检查清洗液浓度、超声波发生器、过滤系统', 18, 4, 2, 'normal', 'completed', DATE_SUB(CURDATE(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), '清洗液浓度正常，超声波工作正常，过滤器已清洁'),
+('maintenance', '数控机床-01 季度保养', '全面保养维护，更换易损件，系统升级', 1, 5, 2, 'high', 'completed', DATE_SUB(CURDATE(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY), '完成季度保养，更换了导轨、丝杠润滑脂，系统升级至最新版本'),
+('inspection', '激光切割机-01 光路检查', '检查激光器功率、光路准直、切割质量', 3, 6, 2, 'high', 'completed', DATE_SUB(CURDATE(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY), '激光器功率稳定，光路准直良好，切割质量符合要求'),
+('repair', '焊接机器人-01 示教器故障', '示教器触摸屏失灵，无法正常操作', 4, 4, 2, 'urgent', 'completed', DATE_SUB(CURDATE(), INTERVAL 4 DAY), DATE_SUB(NOW(), INTERVAL 4 DAY), '已更换示教器触摸屏，重新标定机器人坐标系，设备恢复正常'),
+('inspection', '冲压机-01 安全检查', '检查安全光栅、双手按钮、紧急停止装置', 5, 5, 2, 'high', 'completed', DATE_SUB(CURDATE(), INTERVAL 5 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY), '安全装置工作正常，安全光栅灵敏度良好，紧急停止有效'),
+('maintenance', '磨床-01 砂轮更换', '砂轮磨损严重，需更换新砂轮并动平衡', 9, 6, 2, 'normal', 'completed', DATE_SUB(CURDATE(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY), '已更换新砂轮，完成动平衡调整，磨削精度恢复正常'),
+('inspection', '钻床-01 精度检测', '检查主轴跳动、孔位精度、垂直度', 10, 4, 2, 'normal', 'completed', DATE_SUB(CURDATE(), INTERVAL 7 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY), '主轴跳动在允许范围内，孔位精度良好，垂直度符合要求');
 
 -- ============================================
 -- 6. 插入示例通知数据

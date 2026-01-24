@@ -134,7 +134,7 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         // 按姓名排序
         wrapper.orderByAsc(User::getName);
         
-        List<User> users = this.list(wrapper);
+        List<User> users = this.list(wrapper);  //调用mapper查询数据库  得到List用户列表
         return users.stream()
                 .map(UserDTO::fromEntity)
                 .collect(Collectors.toList());

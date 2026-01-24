@@ -48,7 +48,8 @@ const routes = [
     children: [
       { path: '', name: 'InspectorHome', component: () => import('@/views/inspector/Index.vue') },
       { path: 'equipment', name: 'Equipment', component: () => import('@/views/inspector/Equipment.vue') },
-      { path: 'message', name: 'InspectorMessage', component: () => import('@/views/common/Message.vue') },
+      { path: 'inspection', name: 'Inspection', component: () => import('@/views/inspector/Inspection.vue') },
+      { path: 'message', name: 'InspectorMessage', component: () => import('@/views/inspector/Message.vue') },
       { path: 'profile', name: 'Profile', component: () => import('@/views/inspector/Profile.vue') }
     ]
   },

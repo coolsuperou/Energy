@@ -7,8 +7,11 @@ import com.baomidou.mybatisplus.annotation.EnumValue;
  * 定义工单任务的处理流程状态
  */
 public enum TaskStatus {
-    /** 待处理 任务已创建等待巡检员处理 */
-    PENDING("pending", "待处理"),
+    /** 待派单 任务已创建等待调度员分派 */
+    PENDING("pending", "待派单"),
+    
+    /** 已分派 任务已分派给巡检员待接单 */
+    ASSIGNED("assigned", "已分派"),
     
     /** 进行中 巡检员正在执行任务 */
     IN_PROGRESS("in_progress", "进行中"),

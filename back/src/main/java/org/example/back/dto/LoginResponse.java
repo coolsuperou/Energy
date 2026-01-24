@@ -1,7 +1,11 @@
 package org.example.back.dto;
 
+import lombok.Data;
 import org.example.back.entity.enums.UserRole;
 
+
+
+@Data
 public class LoginResponse {
 
     private Long userId;
@@ -21,10 +25,5 @@ public class LoginResponse {
         this.redirectUrl = redirectUrl;
     }
 
-    public Long getUserId() { return userId; }
-    public String getUsername() { return username; }
-    public String getName() { return name; }
-    public UserRole getRole() { return role; }
-    public String getDepartment() { return department; }
-    public String getRedirectUrl() { return redirectUrl; }
+
 }

@@ -144,4 +144,34 @@ public class TaskController {
         List<Task> tasks = taskService.getTodayPendingTasks(user.getId());
         return Result.success(tasks);
     }
+
+    /**
+     * 接单
+     * 巡检员接受分派的任务
+     */
+    @PostMapping("/{id}/accept")
+    public Result<Void> acceptTask(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "请先登录");
+        }
+
+        taskService.acceptTask(id, user.getId());
+        return Result.success(null);
+    }
+
+    /**
+     * 获取我的任务统计
+     * 巡检员工作台统计数据
+     */
+    @GetMapping("/my/stats")
+    public Result<java.util.Map<String, Object>> getMyTaskStats(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "请先登录");
+        }
+
+        java.util.Map<String, Object> stats = taskService.getMyTaskStats(user.getId());
+        return Result.success(stats);
+    }
 }

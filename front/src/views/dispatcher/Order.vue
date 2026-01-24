@@ -137,15 +137,24 @@
         <el-form-item label="工单号">
           <span>{{ assignDialog.order?.orderNo }}</span>
         </el-form-item>
+        <el-form-item label="工单类型">
+          <el-tag :type="getTypeTagType(assignDialog.order?.type)" size="small">{{ getTypeText(assignDialog.order?.type) }}</el-tag>
+        </el-form-item>
+        <el-form-item label="位置">
+          <span>{{ assignDialog.order?.location || '-' }}</span>
+        </el-form-item>
         <el-form-item label="处理人" required>
-          <el-select v-model="assignDialog.assignee" placeholder="请选择处理人" style="width: 100%">
-            <el-option label="王五" value="王五" />
-            <el-option label="赵六" value="赵六" />
-            <el-option label="钱七" value="钱七" />
+          <el-select v-model="assignDialog.assigneeId" placeholder="请选择巡检员" style="width: 100%">
+            <el-option 
+              v-for="inspector in inspectors" 
+              :key="inspector.id" 
+              :label="inspector.name"
+              :value="inspector.id" 
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="assignDialog.remark" type="textarea" :rows="2" />
+          <el-input v-model="assignDialog.remark" type="textarea" :rows="2" placeholder="可选，填写派单备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -223,9 +232,12 @@ const createDialog = ref({
 const assignDialog = ref({
   visible: false,
   order: null,
-  assignee: '',
+  assigneeId: null,
   remark: ''
 })
+
+// 巡检员列表
+const inspectors = ref([])
 
 // 加载工单列表
 async function loadOrders() {
@@ -333,33 +345,47 @@ async function submitOrder() {
   }
 }
 
+// 加载巡检员列表
+async function loadInspectors() {
+  try {
+    const res = await getUsers('INSPECTOR')
+    if (res && res.code === 200 && res.data) {
+      inspectors.value = res.data
+    }
+  } catch (e) {
+    console.error('加载巡检员列表失败', e)
+  }
+}
+
 // 派单
 function assignOrder(order) {
   assignDialog.value = {
     visible: true,
     order,
-    assignee: '',
+    assigneeId: null,
     remark: ''
   }
 }
 
 // 确认派单
 async function confirmAssign() {
-  if (!assignDialog.value.assignee) {
+  if (!assignDialog.value.assigneeId) {
     ElMessage.warning('请选择处理人')
     return
   }
   
   try {
     const order = assignDialog.value.order
-    const res = await assignTask(order.id, assignDialog.value.assignee)
+    const res = await assignTask(order.id, assignDialog.value.assigneeId)
     if (res && res.code === 200) {
-      ElMessage.success(`已派单给处理人`)
+      const inspector = inspectors.value.find(i => i.id === assignDialog.value.assigneeId)
+      ElMessage.success(`已派单给 ${inspector?.realName || '处理人'}`)
       assignDialog.value.visible = false
       loadOrders()
     }
   } catch (e) {
     console.error('派单失败', e)
+    ElMessage.error('派单失败，请重试')
   }
 }
 
@@ -382,6 +408,7 @@ function viewOrder(order) {
 
 onMounted(() => {
   loadOrders()
+  loadInspectors()
 })
 </script>
 

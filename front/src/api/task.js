@@ -14,6 +14,8 @@ export function getTaskById(id) {
   return request.get(`/tasks/${id}`)
 }
 
+
+
 /**
  * 创建工单
  */
@@ -29,6 +31,16 @@ export function assignTask(id, assigneeId) {
     params: { assigneeId }
   })
 }
+
+/**
+ * 巡检员接单（开始处理任务）
+ */
+export function acceptTask(id) {
+  return request.post(`/tasks/${id}/accept`)
+}
+
+
+
 
 /**
  * 完成工单
@@ -51,4 +63,11 @@ export function getMyTasks(params) {
  */
 export function getTodayTasks() {
   return request.get('/tasks/today')
+}
+
+/**
+ * 获取我的任务统计
+ */
+export function getMyTaskStats() {
+  return request.get('/tasks/my/stats')
 }

@@ -35,11 +35,11 @@
 import { ref, onMounted } from 'vue'
 import BaseLayout from './BaseLayout.vue'
 import { getPendingApplications } from '@/api/application'
+import { getAlerts } from '@/api/energy'  // 添加导入
 
 const pendingCount = ref(0)
 const alertCount = ref(0)
 
-// 加载待审批数量
 async function loadCounts() {
   try {
     const res = await getPendingApplications({ page: 1, size: 1 })
@@ -50,11 +50,16 @@ async function loadCounts() {
     console.warn('加载待审批数量失败', e)
   }
   
-  // 预警数量暂时模拟
-  alertCount.value = Math.floor(Math.random() * 5)
+  // 从API获取实际预警数量
+  try {
+    const res = await getAlerts()
+    if (res && res.code === 200 && res.data) {
+      const stats = res.data.stats || {}
+      alertCount.value = (stats.critical || 0) + (stats.warning || 0)
+    }
+  } catch (e) {
+    console.warn('加载预警数量失败', e)
+    alertCount.value = 0
+  }
 }
-
-onMounted(() => {
-  loadCounts()
-})
 </script>

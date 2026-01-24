@@ -98,15 +98,15 @@ CREATE TABLE IF NOT EXISTS tasks (
     title VARCHAR(200) NOT NULL COMMENT '任务标题',
     description TEXT COMMENT '任务描述',
     equipment_id BIGINT COMMENT '关联设备ID',
-    assigned_to BIGINT NOT NULL COMMENT '分配给（巡检员ID）',
+    assigned_to BIGINT COMMENT '分配给（巡检员ID）',
     assigned_by BIGINT NOT NULL COMMENT '分配人（调度员ID）',
-    priority ENUM('low', 'medium', 'high') DEFAULT 'medium' COMMENT '优先级',
-    status ENUM('pending', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态',
+    priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal' COMMENT '优先级',
+    status ENUM('pending', 'assigned', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态',
     due_date DATE COMMENT '截止日期',
     completed_at DATETIME COMMENT '完成时间',
     report TEXT COMMENT '完成报告',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (equipment_id) REFERENCES equipments(id) ON DELETE SET NULL,
     INDEX idx_assigned_to (assigned_to),
@@ -193,3 +193,18 @@ CREATE TABLE IF NOT EXISTS operation_logs (
     INDEX idx_operation_type (operation_type),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+USE electric_energy_platform;
+
+-- 修改 assigned_to 字段允许 NULL
+ALTER TABLE tasks MODIFY COLUMN assigned_to BIGINT COMMENT '分配给（巡检员ID）';
+
+-- 修改 status 枚举，添加 assigned 状态
+ALTER TABLE tasks MODIFY COLUMN status ENUM('pending', 'assigned', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态';
+
+-- 修改 priority 枚举，添加 urgent，将 medium 改为 normal
+ALTER TABLE tasks MODIFY COLUMN priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal' COMMENT '优先级';
+
+-- 修改外键约束
+ALTER TABLE tasks DROP FOREIGN KEY tasks_ibfk_1;
+ALTER TABLE tasks ADD CONSTRAINT tasks_ibfk_1 FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
