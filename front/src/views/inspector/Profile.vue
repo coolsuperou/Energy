@@ -60,30 +60,30 @@
             <span class="text-muted small">{{ currentMonth }}</span>
           </div>
           <div class="card-body">
-            <div class="d-flex justify-content-between mb-3">
-              <div class="attendance-record">
-                <div v-for="day in attendanceWeek1" :key="day.day" class="attendance-day" :class="day.status">
-                  {{ day.day }}
-                </div>
+            <!-- 日历表格 -->
+            <div class="calendar-grid mb-3">
+              <!-- 星期标题行 -->
+              <div class="calendar-header">
+                <div class="calendar-weekday">周一</div>
+                <div class="calendar-weekday">周二</div>
+                <div class="calendar-weekday">周三</div>
+                <div class="calendar-weekday">周四</div>
+                <div class="calendar-weekday">周五</div>
+                <div class="calendar-weekday">周六</div>
+                <div class="calendar-weekday">周日</div>
               </div>
-              <div class="attendance-record">
-                <div v-for="day in attendanceWeek2" :key="day.day" class="attendance-day" :class="day.status">
-                  {{ day.day }}
+              <!-- 日期网格 -->
+              <div class="calendar-body">
+                <div 
+                  v-for="day in calendarDays" 
+                  :key="day.key" 
+                  class="calendar-day" 
+                  :class="[day.status, { 'other-month': !day.isCurrentMonth }]">
+                  <span class="day-number">{{ day.day }}</span>
                 </div>
               </div>
             </div>
-            <div class="d-flex justify-content-between mb-3">
-              <div class="attendance-record">
-                <div v-for="day in attendanceWeek3" :key="day.day" class="attendance-day" :class="day.status">
-                  {{ day.day }}
-                </div>
-              </div>
-              <div class="attendance-record">
-                <div v-for="day in attendanceWeek4" :key="day.day" class="attendance-day" :class="day.status">
-                  {{ day.day }}
-                </div>
-              </div>
-            </div>
+            <!-- 统计图例 -->
             <div class="d-flex gap-4 small">
               <span><span class="attendance-day normal d-inline-flex" style="width:20px;height:20px;">✓</span> 正常 {{ attendanceStats.normal }}天</span>
               <span><span class="attendance-day late d-inline-flex" style="width:20px;height:20px;">!</span> 迟到 {{ attendanceStats.late }}天</span>
@@ -191,91 +191,44 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import { getCurrentUser, getUserStats, getUserSkills, getUserSchedule, getWorkStats, updateUserInfo } from '@/api/user'
+import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn } from '@/api/attendance'
 
 const workChartRef = ref(null)
 const userInfo = ref({
-  name: '王五',
-  roleName: '设备巡检员',
-  employeeId: 'INS20230001',
-  joinDate: '2023-03-15',
-  phone: '138****8888',
-  email: 'wangwu@company.com',
-  department: '设备运维部'
+  name: '',
+  roleName: '',
+  employeeId: '',
+  joinDate: '',
+  phone: '',
+  email: '',
+  department: ''
 })
 
 const stats = ref({
-  monthlyCompleted: 156,
-  rating: 4.9,
-  onTimeRate: 98,
-  totalCompleted: 1280
+  monthlyCompleted: 0,
+  rating: 0,
+  onTimeRate: 0,
+  totalCompleted: 0
 })
 
-const skills = ref([
-  { id: 1, name: '高压电工证', icon: 'bi bi-lightning-charge text-warning', status: 'approved' },
-  { id: 2, name: '设备维修资格证', icon: 'bi bi-tools text-primary', status: 'approved' },
-  { id: 3, name: '安全生产证', icon: 'bi bi-shield-check text-success', status: 'pending' }
-])
-
-const schedule = ref([
-  { day: '周一', time: '08:00 - 17:00', type: 'day', label: '白班' },
-  { day: '周二', time: '08:00 - 17:00', type: 'day', label: '白班' },
-  { day: '周三', time: '08:00 - 17:00', type: 'day', label: '白班' },
-  { day: '周四', time: '17:00 - 02:00', type: 'night', label: '夜班' },
-  { day: '周五', time: '休息', type: 'off', label: '休' }
-])
+const skills = ref([])
+const schedule = ref([])
 
 const currentTime = ref('--:--:--')
-const currentMonth = ref('2026年1月')
-const clockStatus = ref('clock-out')
-const clockButtonText = ref('下班打卡')
-const clockInTime = ref('08:32:15')
+const currentMonth = ref('')
+const clockStatus = ref('clock-in')
+const clockButtonText = ref('上班打卡')
+const clockInTime = ref('--:--:--')
 const clockOutTime = ref('--:--:--')
 
-const attendanceWeek1 = ref([
-  { day: 1, status: 'normal' },
-  { day: 2, status: 'normal' },
-  { day: 3, status: 'late' },
-  { day: 4, status: 'rest' },
-  { day: 5, status: 'rest' },
-  { day: 6, status: 'normal' },
-  { day: 7, status: 'normal' }
-])
-
-const attendanceWeek2 = ref([
-  { day: 8, status: 'normal' },
-  { day: 9, status: 'normal' },
-  { day: 10, status: 'normal' },
-  { day: 11, status: 'rest' },
-  { day: 12, status: 'rest' },
-  { day: 13, status: 'normal' },
-  { day: 14, status: 'normal' }
-])
-
-const attendanceWeek3 = ref([
-  { day: 15, status: 'normal' },
-  { day: 16, status: 'future' },
-  { day: 17, status: 'future' },
-  { day: 18, status: 'future' },
-  { day: 19, status: 'future' },
-  { day: 20, status: 'future' },
-  { day: 21, status: 'future' }
-])
-
-const attendanceWeek4 = ref([
-  { day: 22, status: 'future' },
-  { day: 23, status: 'future' },
-  { day: 24, status: 'future' },
-  { day: 25, status: 'future' },
-  { day: 26, status: 'future' },
-  { day: 27, status: 'future' },
-  { day: 28, status: 'future' }
-])
+const calendarDays = ref([])
 
 const attendanceStats = ref({
-  normal: 11,
-  late: 1,
+  normal: 0,
+  late: 0,
   absent: 0,
-  rest: 4
+  rest: 0
 })
 
 let timeInterval = null
@@ -298,6 +251,218 @@ function updateTime() {
   currentTime.value = `${hours}:${minutes}:${seconds}`
 }
 
+// 加载用户信息
+async function loadUserInfo() {
+  try {
+    const res = await getCurrentUser()
+    if (res && res.code === 200 && res.data) {
+      userInfo.value = {
+        name: res.data.name || '',
+        roleName: res.data.roleName || '设备巡检员',
+        employeeId: res.data.employeeId || '',
+        joinDate: res.data.joinDate || '',
+        phone: res.data.phone || '',
+        email: res.data.email || '',
+        department: res.data.department || ''
+      }
+    }
+  } catch (e) {
+    console.error('加载用户信息失败', e)
+  }
+}
+
+// 加载统计数据
+async function loadStats() {
+  try {
+    const res = await getUserStats()
+    if (res && res.code === 200 && res.data) {
+      stats.value = {
+        monthlyCompleted: res.data.monthlyCompleted || 0,
+        rating: res.data.rating || 0,
+        onTimeRate: res.data.onTimeRate || 0,
+        totalCompleted: res.data.totalCompleted || 0
+      }
+    }
+  } catch (e) {
+    console.error('加载统计数据失败', e)
+  }
+}
+
+// 加载技能认证
+async function loadSkills() {
+  try {
+    const res = await getUserSkills()
+    if (res && res.code === 200 && res.data) {
+      skills.value = (res.data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        icon: item.icon || 'bi bi-award',
+        status: item.status || 'approved'
+      }))
+    }
+  } catch (e) {
+    console.error('加载技能认证失败', e)
+  }
+}
+
+// 加载排班信息
+async function loadSchedule() {
+  try {
+    const now = new Date()
+    const startDate = new Date(now.setDate(now.getDate() - now.getDay() + 1))
+    const endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + 4)
+    
+    const res = await getUserSchedule(
+      startDate.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    )
+    if (res && res.code === 200 && res.data) {
+      schedule.value = (res.data || []).map(item => ({
+        day: item.dayOfWeek,
+        time: item.timeRange || item.time,
+        type: item.shiftType === 'DAY' ? 'day' : item.shiftType === 'NIGHT' ? 'night' : 'off',
+        label: item.shiftType === 'DAY' ? '白班' : item.shiftType === 'NIGHT' ? '夜班' : '休'
+      }))
+    }
+  } catch (e) {
+    console.error('加载排班信息失败', e)
+  }
+}
+
+// 加载今日考勤
+async function loadTodayAttendance() {
+  try {
+    const res = await getTodayAttendance()
+    if (res && res.code === 200 && res.data) {
+      clockInTime.value = res.data.clockInTime || '--:--:--'
+      clockOutTime.value = res.data.clockOutTime || '--:--:--'
+      
+      if (res.data.clockOutTime) {
+        clockStatus.value = 'clocked'
+        clockButtonText.value = '已下班'
+      } else if (res.data.clockInTime) {
+        clockStatus.value = 'clock-out'
+        clockButtonText.value = '下班打卡'
+      } else {
+        clockStatus.value = 'clock-in'
+        clockButtonText.value = '上班打卡'
+      }
+    }
+  } catch (e) {
+    console.error('加载今日考勤失败', e)
+  }
+}
+
+// 生成日历数据
+function generateCalendarDays(year, month, attendanceRecords) {
+  const days = []
+  
+  // 获取当月第一天和最后一天
+  const firstDay = new Date(year, month - 1, 1)
+  const lastDay = new Date(year, month, 0)
+  
+  // 获取当月第一天是星期几 (0=周日, 1=周一, ..., 6=周六)
+  let firstDayOfWeek = firstDay.getDay()
+  // 转换为周一为第一天 (0=周一, 1=周二, ..., 6=周日)
+  firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
+  
+  // 创建考勤记录映射表
+  const recordMap = {}
+  attendanceRecords.forEach(record => {
+    const date = new Date(record.date)
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    recordMap[key] = record.status
+  })
+  
+  // 添加上月末尾的日期（填充到周一）
+  const prevMonthLastDay = new Date(year, month - 1, 0).getDate()
+  for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+    const day = prevMonthLastDay - i
+    days.push({
+      key: `prev-${day}`,
+      day: day,
+      isCurrentMonth: false,
+      status: 'future'
+    })
+  }
+  
+  // 添加当月所有日期
+  const daysInMonth = lastDay.getDate()
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${year}-${month}-${day}`
+    const status = recordMap[key] ? 
+      (recordMap[key] === 'NORMAL' ? 'normal' : 
+       recordMap[key] === 'LATE' ? 'late' :
+       recordMap[key] === 'ABSENT' ? 'absent' :
+       recordMap[key] === 'REST' ? 'rest' : 'future') : 'future'
+    
+    days.push({
+      key: `current-${day}`,
+      day: day,
+      isCurrentMonth: true,
+      status: status
+    })
+  }
+  
+  // 添加下月开头的日期（填充到周日）
+  const remainingDays = 7 - (days.length % 7)
+  if (remainingDays < 7) {
+    for (let day = 1; day <= remainingDays; day++) {
+      days.push({
+        key: `next-${day}`,
+        day: day,
+        isCurrentMonth: false,
+        status: 'future'
+      })
+    }
+  }
+  
+  return days
+}
+
+// 加载月度考勤
+async function loadMonthlyAttendance() {
+  try {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth() + 1
+    currentMonth.value = `${year}年${month}月`
+    
+    const res = await getMonthlyAttendance(year, month)
+    if (res && res.code === 200 && res.data) {
+      const records = res.data || []
+      calendarDays.value = generateCalendarDays(year, month, records)
+    } else {
+      calendarDays.value = generateCalendarDays(year, month, [])
+    }
+    
+    const statsRes = await getAttendanceStats(year, month)
+    if (statsRes && statsRes.code === 200 && statsRes.data) {
+      attendanceStats.value = {
+        normal: statsRes.data.normalDays || 0,
+        late: statsRes.data.lateDays || 0,
+        absent: statsRes.data.absentDays || 0,
+        rest: statsRes.data.restDays || 0
+      }
+    }
+  } catch (e) {
+    console.error('加载月度考勤失败', e)
+  }
+}
+
+// 加载工作量统计
+async function loadWorkStats() {
+  try {
+    const res = await getWorkStats(7)
+    if (res && res.code === 200 && res.data) {
+      initWorkChart(res.data)
+    }
+  } catch (e) {
+    console.error('加载工作量统计失败', e)
+  }
+}
+
 function getClockIcon() {
   if (clockStatus.value === 'clock-in') {
     return 'bi-box-arrow-in-right'
@@ -308,20 +473,30 @@ function getClockIcon() {
   }
 }
 
-function handleClock() {
-  const now = new Date()
-  const timeStr = now.toTimeString().substring(0, 8)
-  
-  if (clockStatus.value === 'clock-in') {
-    clockInTime.value = timeStr
-    clockStatus.value = 'clock-out'
-    clockButtonText.value = '下班打卡'
-    ElMessage.success('上班打卡成功')
-  } else if (clockStatus.value === 'clock-out') {
-    clockOutTime.value = timeStr
-    clockStatus.value = 'clocked'
-    clockButtonText.value = '已下班'
-    ElMessage.success('下班打卡成功')
+async function handleClock() {
+  try {
+    const type = clockStatus.value === 'clock-in' ? 'IN' : 'OUT'
+    const res = await clockIn(type)
+    
+    if (res && res.code === 200) {
+      const now = new Date()
+      const timeStr = now.toTimeString().substring(0, 8)
+      
+      if (type === 'IN') {
+        clockInTime.value = timeStr
+        clockStatus.value = 'clock-out'
+        clockButtonText.value = '下班打卡'
+        ElMessage.success('上班打卡成功')
+      } else {
+        clockOutTime.value = timeStr
+        clockStatus.value = 'clocked'
+        clockButtonText.value = '已下班'
+        ElMessage.success('下班打卡成功')
+      }
+    }
+  } catch (e) {
+    console.error('打卡失败', e)
+    ElMessage.error('打卡失败')
   }
 }
 
@@ -336,11 +511,23 @@ function showEditDialog() {
   }
 }
 
-function saveProfile() {
-  userInfo.value.phone = editDialog.value.form.phone
-  userInfo.value.email = editDialog.value.form.email
-  editDialog.value.visible = false
-  ElMessage.success('资料已更新')
+async function saveProfile() {
+  try {
+    const res = await updateUserInfo({
+      phone: editDialog.value.form.phone,
+      email: editDialog.value.form.email
+    })
+    
+    if (res && res.code === 200) {
+      userInfo.value.phone = editDialog.value.form.phone
+      userInfo.value.email = editDialog.value.form.email
+      editDialog.value.visible = false
+      ElMessage.success('资料已更新')
+    }
+  } catch (e) {
+    console.error('更新资料失败', e)
+    ElMessage.error('更新资料失败')
+  }
 }
 
 function getSkillBadge(status) {
@@ -397,10 +584,14 @@ function getScheduleTextClass(type) {
   return map[type] || ''
 }
 
-function initWorkChart() {
+function initWorkChart(data) {
   if (!workChartRef.value) return
   
   const chart = echarts.init(workChartRef.value)
+  const days = data?.days || ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  const completedTasks = data?.completedTasks || [0, 0, 0, 0, 0, 0, 0]
+  const inspections = data?.inspections || [0, 0, 0, 0, 0, 0, 0]
+  
   chart.setOption({
     tooltip: { trigger: 'axis' },
     legend: { 
@@ -417,7 +608,7 @@ function initWorkChart() {
     },
     xAxis: { 
       type: 'category', 
-      data: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+      data: days,
       axisLine: { lineStyle: { color: '#e0e0e0' } },
       axisLabel: { color: '#666' }
     },
@@ -436,7 +627,7 @@ function initWorkChart() {
           color: '#667eea',
           borderRadius: [4, 4, 0, 0]
         },
-        data: [8, 12, 10, 0, 15, 6, 5]
+        data: completedTasks
       },
       { 
         name: '巡检次数', 
@@ -446,7 +637,7 @@ function initWorkChart() {
         symbolSize: 8,
         lineStyle: { color: '#22c55e', width: 2 },
         itemStyle: { color: '#22c55e' },
-        data: [3, 4, 3, 0, 5, 2, 2]
+        data: inspections
       }
     ]
   })
@@ -455,7 +646,14 @@ function initWorkChart() {
 onMounted(() => {
   updateTime()
   timeInterval = setInterval(updateTime, 1000)
-  initWorkChart()
+  
+  loadUserInfo()
+  loadStats()
+  loadSkills()
+  loadSchedule()
+  loadTodayAttendance()
+  loadMonthlyAttendance()
+  loadWorkStats()
 })
 
 onUnmounted(() => {
@@ -464,95 +662,3 @@ onUnmounted(() => {
   }
 })
 </script>
-
-<style lang="scss" scoped>
-.clock-btn {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  font-size: 18px;
-  font-weight: 600;
-  border: none;
-  transition: all 0.3s;
-  
-  &.clock-in {
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    color: #fff;
-    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
-  }
-  
-  &.clock-out {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: #fff;
-    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-  }
-  
-  &:hover:not(:disabled) {
-    transform: scale(1.05);
-  }
-  
-  &:disabled {
-    background: #e5e7eb;
-    color: #9ca3af;
-    box-shadow: none;
-    transform: none;
-  }
-}
-
-.attendance-record {
-  display: flex;
-  gap: 4px;
-}
-
-.attendance-day {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  
-  &.normal {
-    background: #dcfce7;
-    color: #16a34a;
-  }
-  
-  &.late {
-    background: #fef3c7;
-    color: #d97706;
-  }
-  
-  &.absent {
-    background: #fee2e2;
-    color: #dc2626;
-  }
-  
-  &.rest {
-    background: #f3f4f6;
-    color: #9ca3af;
-  }
-  
-  &.future {
-    background: #f9fafb;
-    color: #d1d5db;
-    border: 1px dashed #e5e7eb;
-  }
-}
-
-.bg-purple {
-  background-color: #722ed1 !important;
-}
-
-// 夜班特殊样式
-.small > span:last-child {
-  &:not(.text-success):not(.text-muted) {
-    color: #8b5cf6;
-  }
-}
-
-// 夜班背景
-.rounded.mb-1.small:has(span:last-child:not(.text-success):not(.text-muted)) {
-  background: #f3e8ff !important;
-}
-</style>

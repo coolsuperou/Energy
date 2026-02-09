@@ -44,6 +44,9 @@ public class User {
     /** 用户状态 ACTIVE启用 DISABLED禁用 */
     private UserStatus status;
 
+    /** 头像URL 存储在MinIO中的文件路径 */
+    private String avatarUrl;
+
     /** 创建时间 自动填充 */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

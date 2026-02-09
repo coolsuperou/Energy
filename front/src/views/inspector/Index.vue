@@ -170,30 +170,6 @@
           </div>
         </div>
 
-        <!-- 预警设备 -->
-        <div class="card mb-4">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-exclamation-triangle text-warning me-2"></i>预警设备</span>
-            <span class="badge bg-warning text-dark">{{ warningDevices.length }}</span>
-          </div>
-          <div class="card-body p-0">
-            <div v-if="warningDevices.length === 0" class="p-3 text-center text-muted">
-              <p class="mb-0">暂无预警设备</p>
-            </div>
-            <div v-else>
-              <div v-for="(device, index) in warningDevices" :key="device.id" class="p-3" :class="{ 'border-bottom': index < warningDevices.length - 1 }">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <div class="fw-semibold small">{{ device.name }}</div>
-                    <div class="text-muted small">{{ device.location }} · {{ device.warning }}</div>
-                  </div>
-                  <span class="badge" :class="getDeviceBadgeClass(device.level)">{{ device.value }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- 最新消息 -->
         <div class="card mb-4">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -227,11 +203,14 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getMyTasks, getMyTaskStats } from '@/api/task'
+import { getTodayTasks, getMyTaskStats } from '@/api/task'
+import { getTodayInspections } from '@/api/inspection'
+import { getCurrentUser } from '@/api/user'
+import { getMyNotifications } from '@/api/notification'
 import * as echarts from 'echarts'
 
 // 用户信息
-const userName = ref('王五')
+const userName = ref('')
 
 // 问候语
 const greeting = computed(() => {
@@ -253,73 +232,24 @@ const weekDay = computed(() => {
 
 // 统计数据
 const stats = ref({
-  inspectionTasks: 3,        // 今日巡检任务
-  completedInspections: 1,   // 已完成巡检
-  ongoingInspections: 1,     // 进行中巡检
-  pendingInspections: 1,     // 待开始巡检
-  pendingOrders: 2,          // 待处理工单
-  urgentOrders: 1,           // 紧急工单
-  normalOrders: 1,           // 一般工单
-  weekCompleted: 18,         // 本周完成
-  weekGrowth: 12,            // 较上周增长
-  rating: 4.9,               // 服务评分
-  monthlyReviews: 23         // 本月好评
+  inspectionTasks: 0,
+  completedInspections: 0,
+  ongoingInspections: 0,
+  pendingInspections: 0,
+  pendingOrders: 0,
+  urgentOrders: 0,
+  normalOrders: 0,
+  weekCompleted: 0,
+  weekGrowth: 0,
+  rating: 0,
+  monthlyReviews: 0
 })
 
 // 今日任务列表
-const todayTasks = ref([
-  {
-    id: 1,
-    title: '配电柜异常发热处理',
-    description: '生产二车间 - 配电室',
-    status: 'URGENT',
-    taskType: 'REPAIR',
-    assignedAt: '10:15',
-    assignedBy: '调度员'
-  },
-  {
-    id: 2,
-    title: '生产二车间例行巡检',
-    description: '配电室、UPS机房',
-    status: 'IN_PROGRESS',
-    taskType: 'INSPECTION',
-    timeRange: '10:30 - 12:00',
-    progress: 53,
-    progressText: '8/15 项'
-  },
-  {
-    id: 3,
-    title: '装配车间例行巡检',
-    description: '配电柜、照明系统',
-    status: 'PENDING',
-    taskType: 'INSPECTION',
-    timeRange: '14:00 - 16:00',
-    startIn: '2小时后开始'
-  },
-  {
-    id: 4,
-    title: '变压器温度检查',
-    description: '仓储车间 - 3号变压器',
-    status: 'ASSIGNED',
-    taskType: 'MAINTENANCE',
-    assignedAt: '11:00',
-    assignedBy: '调度员'
-  }
-])
-
-// 预警设备
-const warningDevices = ref([
-  { id: 1, name: '2号配电柜', location: '生产二车间', warning: '温度过高', value: '65°C', level: 'danger' },
-  { id: 2, name: '3号变压器', location: '仓储车间', warning: '负载偏高', value: '92%', level: 'warning' },
-  { id: 3, name: '电表A3', location: '装配车间', warning: '通讯异常', value: '离线', level: 'secondary' }
-])
+const todayTasks = ref([])
 
 // 最新消息
-const recentMessages = ref([
-  { id: 1, icon: 'bi-file-earmark-text', text: '李四（调度员）给您分配了新工单', time: '10分钟前', type: 'info' },
-  { id: 2, icon: 'bi-clock', text: '装配车间巡检任务即将开始', time: '30分钟前', type: 'warning' },
-  { id: 3, icon: 'bi-star', text: '您收到一条5星好评', time: '2小时前', type: 'success' }
-])
+const recentMessages = ref([])
 
 // 加载状态
 const loading = ref(false)
@@ -463,12 +393,36 @@ function initWeekChart() {
   weekChart.setOption(option)
 }
 
+// 加载用户信息
+async function loadUserInfo() {
+  try {
+    const res = await getCurrentUser()
+    if (res && res.code === 200 && res.data) {
+      userName.value = res.data.name || ''
+    }
+  } catch (e) {
+    console.error('加载用户信息失败', e)
+  }
+}
+
 // 加载统计数据
 async function loadStats() {
   try {
     const res = await getMyTaskStats()
     if (res && res.code === 200 && res.data) {
-      Object.assign(stats.value, res.data)
+      stats.value = {
+        inspectionTasks: res.data.todayInspectionCount || 0,
+        completedInspections: res.data.completedInspectionCount || 0,
+        ongoingInspections: res.data.ongoingInspectionCount || 0,
+        pendingInspections: res.data.pendingInspectionCount || 0,
+        pendingOrders: res.data.pendingTaskCount || 0,
+        urgentOrders: res.data.urgentTaskCount || 0,
+        normalOrders: res.data.normalTaskCount || 0,
+        weekCompleted: res.data.weekCompletedCount || 0,
+        weekGrowth: res.data.weekGrowthRate || 0,
+        rating: res.data.rating || 0,
+        monthlyReviews: res.data.monthlyReviewCount || 0
+      }
     }
   } catch (e) {
     console.error('加载统计数据失败', e)
@@ -479,20 +433,66 @@ async function loadStats() {
 async function loadTodayTasks() {
   loading.value = true
   try {
-    const res = await getMyTasks({ limit: 10 })
+    const res = await getTodayTasks()
     if (res && res.code === 200 && res.data) {
-      // todayTasks.value = res.data.records || res.data || []
+      todayTasks.value = res.data || []
     }
   } catch (e) {
     console.error('加载任务列表失败', e)
+    ElMessage.error('加载任务列表失败')
   }
   loading.value = false
 }
 
+// 加载最新消息
+async function loadRecentMessages() {
+  try {
+    const res = await getMyNotifications({ limit: 3 })
+    if (res && res.code === 200 && res.data) {
+      recentMessages.value = (res.data.records || res.data || []).map(item => ({
+        id: item.id,
+        icon: getNotificationIcon(item.type),
+        text: item.content || item.message,
+        time: formatTime(item.createdAt),
+        type: item.type
+      }))
+    }
+  } catch (e) {
+    console.error('加载消息失败', e)
+  }
+}
+
+// 获取通知图标
+function getNotificationIcon(type) {
+  const map = {
+    TASK_ASSIGNED: 'bi-file-earmark-text',
+    INSPECTION_REMINDER: 'bi-clock',
+    REVIEW_RECEIVED: 'bi-star',
+    SYSTEM: 'bi-info-circle'
+  }
+  return map[type] || 'bi-bell'
+}
+
+// 格式化时间
+function formatTime(timestamp) {
+  if (!timestamp) return ''
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diff = Math.floor((now - time) / 1000)
+  
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}天前`
+  return time.toLocaleDateString()
+}
+
 // 页面加载时调用
 onMounted(() => {
+  loadUserInfo()
   loadStats()
   loadTodayTasks()
+  loadRecentMessages()
   
   nextTick(() => {
     initWeekChart()

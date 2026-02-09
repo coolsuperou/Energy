@@ -77,76 +77,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getTodayInspections, getInspectionItems, startInspection as startInspectionApi, submitInspection as submitInspectionApi } from '@/api/inspection'
 
-const inspectionTasks = ref([
-  {
-    id: 1,
-    name: '生产一车间巡检',
-    location: '配电室、变压器、电缆沟',
-    time: '08:00-10:00',
-    progress: '12项检查点',
-    progressPercent: 100,
-    status: 'completed'
-  },
-  {
-    id: 2,
-    name: '生产二车间巡检',
-    location: '配电室、UPS机房',
-    time: '10:30-12:00',
-    progress: '8/15项',
-    progressPercent: 53,
-    status: 'in_progress'
-  },
-  {
-    id: 3,
-    name: '装配车间巡检',
-    location: '配电柜、照明系统',
-    time: '14:00-16:00',
-    progress: '10项检查点',
-    progressPercent: 0,
-    status: 'pending'
-  }
-])
-
-const currentTask = ref({
-  id: 2,
-  name: '生产二车间'
-})
-
-const checkItems = ref([
-  {
-    name: '配电柜外观',
-    content: '检查柜体是否完好，无变形、锈蚀',
-    result: 'normal',
-    remark: ''
-  },
-  {
-    name: '温度检测',
-    content: '测量配电柜温度，正常≤45°C',
-    result: 'abnormal',
-    remark: '温度65°C，已报修'
-  },
-  {
-    name: '接线检查',
-    content: '检查接线端子是否松动、发热',
-    result: 'normal',
-    remark: ''
-  },
-  {
-    name: '指示灯状态',
-    content: '检查各指示灯工作是否正常',
-    result: 'normal',
-    remark: ''
-  },
-  {
-    name: '仪表读数',
-    content: '记录电压、电流、功率等参数',
-    result: 'normal',
-    remark: 'U=380V, I=125A'
-  }
-])
+const inspectionTasks = ref([])
+const currentTask = ref(null)
+const checkItems = ref([])
 
 const pendingCount = computed(() => {
   return inspectionTasks.value.filter(t => t.status === 'pending' || t.status === 'in_progress').length
@@ -170,28 +107,109 @@ function getStatusText(status) {
   return map[status] || status
 }
 
-function startInspection(task) {
-  task.status = 'in_progress'
-  currentTask.value = { id: task.id, name: task.name.replace('巡检', '') }
-  ElMessage.success('已开始巡检任务')
+// 加载今日巡检任务
+async function loadInspectionTasks() {
+  try {
+    const res = await getTodayInspections()
+    if (res && res.code === 200 && res.data) {
+      inspectionTasks.value = (res.data || []).map(item => ({
+        id: item.id,
+        name: item.name || item.title,
+        location: item.location,
+        time: item.timeRange || `${item.startTime}-${item.endTime}`,
+        progress: item.progress || `${item.completedItems || 0}/${item.totalItems || 0}项`,
+        progressPercent: item.progressPercent || 0,
+        status: item.status === 'COMPLETED' ? 'completed' : item.status === 'IN_PROGRESS' ? 'in_progress' : 'pending'
+      }))
+      
+      // 默认选择第一个进行中的任务
+      const inProgressTask = inspectionTasks.value.find(t => t.status === 'in_progress')
+      if (inProgressTask) {
+        currentTask.value = { id: inProgressTask.id, name: inProgressTask.name.replace('巡检', '') }
+        loadCheckItems(inProgressTask.id)
+      }
+    }
+  } catch (e) {
+    console.error('加载巡检任务失败', e)
+    ElMessage.error('加载巡检任务失败')
+  }
 }
 
-function submitInspection() {
-  const abnormalItems = checkItems.value.filter(item => item.result === 'abnormal')
-  
-  if (abnormalItems.length > 0) {
-    ElMessage.warning(`发现 ${abnormalItems.length} 项异常，请确认已处理`)
-  } else {
-    ElMessage.success('巡检记录已提交')
-  }
-  
-  const task = inspectionTasks.value.find(t => t.id === currentTask.value.id)
-  if (task) {
-    task.status = 'completed'
-    task.progressPercent = 100
-    task.progress = task.progress.split('/')[1] || task.progress
+// 加载检查项
+async function loadCheckItems(inspectionId) {
+  try {
+    const res = await getInspectionItems(inspectionId)
+    if (res && res.code === 200 && res.data) {
+      checkItems.value = (res.data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        content: item.description || item.content,
+        result: item.result || 'normal',
+        remark: item.remark || ''
+      }))
+    }
+  } catch (e) {
+    console.error('加载检查项失败', e)
   }
 }
+
+async function startInspection(task) {
+  try {
+    const res = await startInspectionApi(task.id)
+    if (res && res.code === 200) {
+      task.status = 'in_progress'
+      currentTask.value = { id: task.id, name: task.name.replace('巡检', '') }
+      await loadCheckItems(task.id)
+      ElMessage.success('已开始巡检任务')
+    }
+  } catch (e) {
+    console.error('开始巡检失败', e)
+    ElMessage.error('开始巡检失败')
+  }
+}
+
+async function submitInspection() {
+  if (!currentTask.value) {
+    ElMessage.warning('请先选择巡检任务')
+    return
+  }
+  
+  const abnormalItems = checkItems.value.filter(item => item.result === 'abnormal')
+  
+  try {
+    const data = {
+      items: checkItems.value.map(item => ({
+        id: item.id,
+        result: item.result,
+        remark: item.remark
+      }))
+    }
+    
+    const res = await submitInspectionApi(currentTask.value.id, data)
+    if (res && res.code === 200) {
+      if (abnormalItems.length > 0) {
+        ElMessage.warning(`巡检已提交，发现 ${abnormalItems.length} 项异常`)
+      } else {
+        ElMessage.success('巡检记录已提交')
+      }
+      
+      const task = inspectionTasks.value.find(t => t.id === currentTask.value.id)
+      if (task) {
+        task.status = 'completed'
+        task.progressPercent = 100
+      }
+      
+      await loadInspectionTasks()
+    }
+  } catch (e) {
+    console.error('提交巡检失败', e)
+    ElMessage.error('提交巡检失败')
+  }
+}
+
+onMounted(() => {
+  loadInspectionTasks()
+})
 </script>
 
 <style lang="scss" scoped>

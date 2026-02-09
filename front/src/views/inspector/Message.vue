@@ -71,82 +71,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { getMyNotifications, markRead, getUnreadCount } from '@/api/notification'
 
 const router = useRouter()
 const activeTab = ref('all')
-
-const messages = ref([
-  {
-    id: 1,
-    type: 'urgent',
-    priority: 'urgent',
-    category: 'order',
-    title: '【紧急】新工单分配',
-    content: '生产二车间配电柜异常发热，需要紧急处理。当前温度65°C，已超过警戒值。',
-    time: '5分钟前',
-    read: false,
-    action: true,
-    actionText: '立即查看'
-  },
-  {
-    id: 2,
-    type: 'reminder',
-    priority: 'normal',
-    category: 'order',
-    title: '巡检任务提醒',
-    content: '装配车间巡检任务将于14:00开始，请提前做好准备。检查点共10项。',
-    time: '30分钟前',
-    read: false,
-    action: false
-  },
-  {
-    id: 3,
-    type: 'chat',
-    priority: 'normal',
-    category: 'team',
-    title: '李四（能源调度员）',
-    content: '王工，生产二车间的工单处理得怎么样了？车间那边比较着急。',
-    time: '1小时前',
-    read: false,
-    action: false
-  },
-  {
-    id: 4,
-    type: 'success',
-    priority: 'normal',
-    category: 'order',
-    title: '工单完成确认',
-    content: '您处理的工单 WO202401140002 已确认完成，获得5.0分好评！',
-    time: '昨天 16:30',
-    read: true,
-    action: false
-  },
-  {
-    id: 5,
-    type: 'info',
-    priority: 'normal',
-    category: 'system',
-    title: '排班变更通知',
-    content: '您本周三的班次已调整为夜班（17:00-02:00），请注意查看。',
-    time: '昨天 09:00',
-    read: true,
-    action: false
-  },
-  {
-    id: 6,
-    type: 'info',
-    priority: 'normal',
-    category: 'system',
-    title: '系统维护通知',
-    content: '系统将于本周六凌晨2:00-4:00进行维护升级，期间可能无法访问。',
-    time: '2天前',
-    read: true,
-    action: false
-  }
-])
+const messages = ref([])
+const loading = ref(false)
 
 const unreadCount = computed(() => {
   return messages.value.filter(m => !m.read).length
@@ -158,6 +91,67 @@ const filteredMessages = computed(() => {
   }
   return messages.value.filter(m => m.category === activeTab.value)
 })
+
+// 加载消息列表
+async function loadMessages() {
+  loading.value = true
+  try {
+    const res = await getMyNotifications({ pageSize: 50 })
+    if (res && res.code === 200 && res.data) {
+      messages.value = (res.data.records || res.data || []).map(item => ({
+        id: item.id,
+        type: getMessageType(item.type),
+        priority: item.priority === 'HIGH' ? 'urgent' : 'normal',
+        category: getCategoryFromType(item.type),
+        title: item.title,
+        content: item.content || item.message,
+        time: formatTime(item.createdAt),
+        read: item.read || false,
+        action: item.type === 'TASK_ASSIGNED' || item.type === 'URGENT_TASK',
+        actionText: '立即查看'
+      }))
+    }
+  } catch (e) {
+    console.error('加载消息失败', e)
+    ElMessage.error('加载消息失败')
+  }
+  loading.value = false
+}
+
+// 获取消息类型
+function getMessageType(type) {
+  const map = {
+    URGENT_TASK: 'urgent',
+    TASK_ASSIGNED: 'urgent',
+    INSPECTION_REMINDER: 'reminder',
+    TEAM_MESSAGE: 'chat',
+    TASK_COMPLETED: 'success',
+    SYSTEM_NOTICE: 'info'
+  }
+  return map[type] || 'info'
+}
+
+// 获取分类
+function getCategoryFromType(type) {
+  if (type.includes('TASK') || type.includes('INSPECTION')) return 'order'
+  if (type.includes('TEAM') || type.includes('MESSAGE')) return 'team'
+  return 'system'
+}
+
+// 格式化时间
+function formatTime(timestamp) {
+  if (!timestamp) return ''
+  const now = new Date()
+  const time = new Date(timestamp)
+  const diff = Math.floor((now - time) / 1000)
+  
+  if (diff < 60) return '刚刚'
+  if (diff < 3600) return `${Math.floor(diff / 60)}分钟前`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}小时前`
+  if (diff < 172800) return '昨天 ' + time.toTimeString().substring(0, 5)
+  if (diff < 604800) return `${Math.floor(diff / 86400)}天前`
+  return time.toLocaleDateString()
+}
 
 function getIcon(type) {
   const map = {
@@ -185,10 +179,17 @@ function getActionBtnClass(priority) {
   return priority === 'urgent' ? 'btn-danger' : 'btn-primary'
 }
 
-function markAsRead(msg) {
+async function markAsRead(msg) {
   if (!msg.read) {
-    msg.read = true
-    ElMessage.success('消息已标记为已读')
+    try {
+      const res = await markRead(msg.id)
+      if (res && res.code === 200) {
+        msg.read = true
+        ElMessage.success('消息已标记为已读')
+      }
+    } catch (e) {
+      console.error('标记已读失败', e)
+    }
   }
 }
 
@@ -198,6 +199,10 @@ function handleAction(msg) {
     ElMessage.info('跳转到我的工单')
   }
 }
+
+onMounted(() => {
+  loadMessages()
+})
 </script>
 
 <style lang="scss" scoped>

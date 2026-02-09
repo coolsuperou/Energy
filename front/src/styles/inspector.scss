@@ -1161,3 +1161,174 @@
     }
   }
 }
+
+
+/* ========== Profile.vue（个人中心 - 考勤打卡）样式 ========== */
+
+/* 打卡按钮 */
+.clock-btn {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  transition: all 0.3s;
+  
+  &.clock-in {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #fff;
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.4);
+  }
+  
+  &.clock-out {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #fff;
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+  }
+  
+  &:hover:not(:disabled) {
+    transform: scale(1.05);
+  }
+  
+  &:disabled {
+    background: #e5e7eb;
+    color: #9ca3af;
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+/* 日历网格样式 */
+.calendar-grid {
+  width: 100%;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 8px 0;
+}
+
+.calendar-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-day {
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.2s;
+  
+  .day-number {
+    position: relative;
+    z-index: 1;
+  }
+  
+  &.normal {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+  
+  &.late {
+    background: #fef3c7;
+    color: #d97706;
+  }
+  
+  &.absent {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  
+  &.rest {
+    background: #f3f4f6;
+    color: #9ca3af;
+  }
+  
+  &.future {
+    background: #f9fafb;
+    color: #d1d5db;
+  }
+  
+  &.other-month {
+    opacity: 0.4;
+    font-size: 12px;
+  }
+  
+  &:hover:not(.other-month) {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.attendance-record {
+  display: flex;
+  gap: 4px;
+}
+
+.attendance-day {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  
+  &.normal {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+  
+  &.late {
+    background: #fef3c7;
+    color: #d97706;
+  }
+  
+  &.absent {
+    background: #fee2e2;
+    color: #dc2626;
+  }
+  
+  &.rest {
+    background: #f3f4f6;
+    color: #9ca3af;
+  }
+  
+  &.future {
+    background: #f9fafb;
+    color: #d1d5db;
+  }
+}
+
+.bg-purple {
+  background-color: #722ed1 !important;
+}
+
+// 夜班特殊样式
+.small > span:last-child {
+  &:not(.text-success):not(.text-muted) {
+    color: #8b5cf6;
+  }
+}
+
+// 夜班背景
+.rounded.mb-1.small:has(span:last-child:not(.text-success):not(.text-muted)) {
+  background: #f3e8ff !important;
+}

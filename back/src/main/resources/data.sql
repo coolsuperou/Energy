@@ -5,6 +5,7 @@ USE electric_energy_platform;
 
 -- 清空现有数据（开发测试用）
 SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE attendance_records;
 TRUNCATE TABLE operation_logs;
 TRUNCATE TABLE comments;
 TRUNCATE TABLE quotas;
@@ -371,4 +372,53 @@ SELECT '车间配额', COUNT(*) FROM quotas
 UNION ALL
 SELECT '评论数据', COUNT(*) FROM comments
 UNION ALL
-SELECT '能耗数据', COUNT(*) FROM energy_data;
+SELECT '能耗数据', COUNT(*) FROM energy_data
+UNION ALL
+SELECT '考勤记录', COUNT(*) FROM attendance_records;
+
+-- ============================================
+-- 8. 插入考勤排班测试数据
+-- ============================================
+-- 为巡检员添加本月考勤和排班记录
+-- 字段：user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+-- 赵巡检 (user_id=4) 的考勤记录 - 白班
+(4, CURDATE(), 'day', '08:30:00', '17:30:00', '08:25:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(4, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', '08:28:00', '17:32:00', 'normal', 9.07, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', '08:45:00', '17:35:00', 'late', 8.83, '迟到'),
+(4, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', '08:20:00', '17:28:00', 'normal', 9.13, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(4, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(4, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:30:00', '17:30:00', '08:32:00', '17:30:00', 'normal', 8.97, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:30:00', '17:30:00', '08:27:00', '17:33:00', 'normal', 9.10, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:30:00', '17:30:00', '08:29:00', '17:31:00', 'normal', 9.03, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:30:00', '17:30:00', '08:50:00', '17:30:00', 'late', 8.67, '迟到'),
+(4, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:30:00', '17:30:00', '08:25:00', '17:35:00', 'normal', 9.17, '正常出勤'),
+(4, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(4, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(4, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+
+-- 钱巡检 (user_id=5) 的部分考勤记录 - 夜班
+(5, CURDATE(), 'night', '20:00:00', '05:00:00', '19:55:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(5, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'night', '20:00:00', '05:00:00', '20:05:00', '05:02:00', 'normal', 8.95, '正常出勤'),
+(5, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'night', '20:00:00', '05:00:00', '20:15:00', '05:00:00', 'late', 8.75, '迟到'),
+(5, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'night', '20:00:00', '05:00:00', '19:58:00', '05:05:00', 'normal', 9.12, '正常出勤');
+
+-- 添加未来一周的排班计划（赵巡检 - 白班）
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(4, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(4, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(4, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(4, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(4, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(4, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 添加未来一周的排班计划（钱巡检 - 夜班）
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(5, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划'),
+(5, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划'),
+(5, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划'),
+(5, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'rest', NULL, NULL, 'rest', '休息日'),
+(5, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划'),
+(5, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划');

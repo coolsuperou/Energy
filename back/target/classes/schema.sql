@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
     department VARCHAR(100) COMMENT '部门',
     phone VARCHAR(20) COMMENT '联系电话',
     email VARCHAR(100) COMMENT '邮箱',
+    avatar_url VARCHAR(255) COMMENT '头像URL',
     status ENUM('active', 'disabled') DEFAULT 'active' COMMENT '状态',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -193,6 +194,35 @@ CREATE TABLE IF NOT EXISTS operation_logs (
     INDEX idx_operation_type (operation_type),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+-- 11. 考勤排班表 (attendance_records)
+CREATE TABLE IF NOT EXISTS attendance_records (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '考勤ID',
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    attendance_date DATE NOT NULL COMMENT '考勤日期',
+    
+    -- 排班信息
+    shift_type ENUM('day', 'night', 'rest') DEFAULT 'day' COMMENT '班次类型：白班/夜班/休息',
+    scheduled_start_time TIME COMMENT '计划上班时间',
+    scheduled_end_time TIME COMMENT '计划下班时间',
+    
+    -- 打卡信息
+    clock_in_time TIME COMMENT '实际上班打卡时间',
+    clock_out_time TIME COMMENT '实际下班打卡时间',
+    
+    -- 考勤状态
+    status ENUM('normal', 'late', 'early_leave', 'absent', 'rest', 'holiday') DEFAULT 'normal' COMMENT '考勤状态',
+    work_hours DECIMAL(4,2) COMMENT '工作时长(小时)',
+    remark VARCHAR(200) COMMENT '备注',
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_user_date (user_id, attendance_date),
+    INDEX idx_user_date (user_id, attendance_date),
+    INDEX idx_status (status),
+    INDEX idx_shift_type (shift_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='考勤排班表';
 
 USE electric_energy_platform;
 

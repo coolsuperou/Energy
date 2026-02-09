@@ -113,6 +113,14 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         this.updateById(user);
     }
 
+    @Transactional
+    public void updateUser(User user) {
+        if (user == null || user.getId() == null) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR);
+        }
+        this.updateById(user);
+    }
+
     /**
      * 获取用户列表
      * 支持按角色筛选，用于派单等场景
