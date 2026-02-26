@@ -5,7 +5,7 @@ import org.example.back.entity.AttendanceRecord;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.AttendanceStatus;
 import org.example.back.entity.enums.ShiftType;
-import org.example.back.mapper.AttendanceMapper;
+import org.example.back.mapper.common.AttendanceMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -65,7 +65,7 @@ public class AttendanceService {
             // 计算工作时长
             if (record.getClockInTime() != null) {
                 Duration duration = Duration.between(record.getClockInTime(), now);
-                BigDecimal hours = BigDecimal.valueOf(duration.toMinutes()).divide(BigDecimal.valueOf(60), 2, BigDecimal.ROUND_HALF_UP);
+                BigDecimal hours = BigDecimal.valueOf(duration.toMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
                 record.setWorkHours(hours);
             }
 
@@ -91,50 +91,70 @@ public class AttendanceService {
 
     /**
      * 获取月度考勤记录
+     * 结合排班数据修正状态：过去日期有排班无打卡→缺勤，未来日期保留排班状态
      */
     public List<AttendanceRecord> getMonthlyAttendance(User user, int year, int month) {
-        return attendanceMapper.getMonthlyAttendance(user.getId(), year, month);
+        List<AttendanceRecord> records = attendanceMapper.getMonthlyAttendance(user.getId(), year, month);
+        LocalDate today = LocalDate.now();
+        
+        for (AttendanceRecord record : records) {
+            if (record.getAttendanceDate() == null) continue;
+            
+            boolean isPast = record.getAttendanceDate().isBefore(today);
+            boolean isToday = record.getAttendanceDate().isEqual(today);
+            boolean hasClockIn = record.getClockInTime() != null;
+            boolean isRest = record.getShiftType() == ShiftType.REST;
+            
+            if (isRest && !hasClockIn) {
+                // 排班为休息且没有打卡 → 休息
+                record.setStatus(AttendanceStatus.REST);
+            } else if (!isRest && isPast && !hasClockIn) {
+                // 非休息日、过去的日期、没有打卡 → 缺勤
+                record.setStatus(AttendanceStatus.ABSENT);
+            } else if (!isRest && isToday && !hasClockIn) {
+                // 非休息日、今天、还没打卡 → 保持当前状态
+            }
+            // 有打卡的记录保持原有状态（NORMAL/LATE/EARLY_LEAVE等）
+            // 未来日期保留排班状态，前端根据日期判断显示
+        }
+        
+        return records;
     }
 
     /**
      * 获取月度考勤统计
+     * 基于修正后的月度数据统计，确保排班+打卡逻辑一致
      */
     public Map<String, Object> getAttendanceStats(User user, int year, int month) {
-        List<Map<String, Object>> stats = attendanceMapper.getMonthlyStats(user.getId(), year, month);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("normalDays", 0);
-        result.put("lateDays", 0);
-        result.put("absentDays", 0);
-        result.put("restDays", 0);
-        result.put("earlyLeave", 0);
-        result.put("holiday", 0);
-
-        for (Map<String, Object> stat : stats) {
-            String status = (String) stat.get("status");
-            Long count = (Long) stat.get("count");
-
-            switch (status) {
-                case "normal":
-                    result.put("normalDays", count.intValue());
-                    break;
-                case "late":
-                    result.put("lateDays", count.intValue());
-                    break;
-                case "absent":
-                    result.put("absentDays", count.intValue());
-                    break;
-                case "rest":
-                    result.put("restDays", count.intValue());
-                    break;
-                case "early_leave":
-                    result.put("earlyLeave", count.intValue());
-                    break;
-                case "holiday":
-                    result.put("holiday", count.intValue());
-                    break;
+        // 复用getMonthlyAttendance的修正逻辑
+        List<AttendanceRecord> records = getMonthlyAttendance(user, year, month);
+        LocalDate today = LocalDate.now();
+        
+        int normalDays = 0, lateDays = 0, absentDays = 0, restDays = 0, earlyLeaveDays = 0, holidayDays = 0;
+        
+        for (AttendanceRecord record : records) {
+            if (record.getAttendanceDate() == null) continue;
+            // 只统计今天及之前的日期
+            if (record.getAttendanceDate().isAfter(today)) continue;
+            
+            if (record.getStatus() == null) continue;
+            switch (record.getStatus()) {
+                case NORMAL: normalDays++; break;
+                case LATE: lateDays++; break;
+                case ABSENT: absentDays++; break;
+                case REST: restDays++; break;
+                case EARLY_LEAVE: earlyLeaveDays++; break;
+                case HOLIDAY: holidayDays++; break;
             }
         }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("normalDays", normalDays);
+        result.put("lateDays", lateDays);
+        result.put("absentDays", absentDays);
+        result.put("restDays", restDays);
+        result.put("earlyLeaveDays", earlyLeaveDays);
+        result.put("holiday", holidayDays);
 
         return result;
     }

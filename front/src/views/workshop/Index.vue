@@ -1,21 +1,21 @@
 <template>
-  <div class="workshop-home">
+  <div class="workshop-home" v-loading="loading">
     <!-- 统计卡片 -->
     <div class="stat-cards">
       <div class="stat-card">
         <div class="stat-icon blue"><i class="bi bi-lightning-charge"></i></div>
         <div class="stat-info">
           <div class="stat-value">{{ stats.todayEnergy }}</div>
-          <div class="stat-label">今日能耗 (kWh)</div>
-          <div class="stat-trend up"><i class="bi bi-arrow-up"></i> 较昨日 +5.2%</div>
+          <div class="stat-label">今日用电量 (kWh)</div>
+          <div class="stat-trend muted">实时统计</div>
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon green"><i class="bi bi-speedometer2"></i></div>
+        <div class="stat-icon green"><i class="bi bi-calendar-month"></i></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.currentPower }}</div>
-          <div class="stat-label">当前功率 (kW)</div>
-          <div class="stat-trend muted">实时监测中</div>
+          <div class="stat-value">{{ stats.monthEnergy }}</div>
+          <div class="stat-label">本月用电量 (kWh)</div>
+          <div class="stat-trend muted">累计统计</div>
         </div>
       </div>
       <div class="stat-card">
@@ -27,16 +27,17 @@
         </div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+        <div class="stat-icon red"><i class="bi bi-bell"></i></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.alerts }}</div>
-          <div class="stat-label">异常通知</div>
-          <div class="stat-trend down" v-if="stats.alerts > 0">需要关注</div>
-          <div class="stat-trend muted" v-else>暂无异常</div>
+          <div class="stat-value">{{ stats.unreadCount }}</div>
+          <div class="stat-label">未读消息</div>
+          <div class="stat-trend down" v-if="stats.unreadCount > 0">需要关注</div>
+          <div class="stat-trend muted" v-else>暂无新消息</div>
         </div>
       </div>
     </div>
 
+    <!-- 中间部分：快捷操作 + 功率曲线 -->
     <div class="content-grid">
       <!-- 快捷操作 -->
       <div class="card">
@@ -51,13 +52,9 @@
               <div class="action-icon green"><i class="bi bi-graph-up"></i></div>
               <span>能耗统计</span>
             </router-link>
-            <router-link to="/workshop/message" class="quick-action">
+            <router-link to="/workshop/feedback" class="quick-action">
               <div class="action-icon orange"><i class="bi bi-tools"></i></div>
               <span>故障报修</span>
-            </router-link>
-            <router-link to="/workshop/message" class="quick-action">
-              <div class="action-icon purple"><i class="bi bi-lightbulb"></i></div>
-              <span>节能建议</span>
             </router-link>
           </div>
         </div>
@@ -73,7 +70,10 @@
           <div ref="powerChartRef" style="height: 200px;"></div>
         </div>
       </div>
+    </div>
 
+    <!-- 下半部分：最近申请 + 消息提醒，3:2 比例 -->
+    <div class="bottom-grid">
       <!-- 最近申请 -->
       <div class="card">
         <div class="card-header">
@@ -111,27 +111,21 @@
 
       <!-- 异常通知 -->
       <div class="card">
-        <div class="card-header">异常通知</div>
+        <div class="card-header">
+          <span>消息提醒</span>
+          <router-link to="/workshop/message" class="card-link">查看全部 →</router-link>
+        </div>
         <div class="card-body">
-          <div class="notice-item warning" v-if="stats.alerts > 0">
-            <i class="bi bi-exclamation-triangle-fill"></i>
+          <div class="notice-item warning" v-if="stats.unreadCount > 0">
+            <i class="bi bi-bell-fill"></i>
             <div class="notice-content">
-              <h6>用电超限预警</h6>
-              <p>当前功率已达到申请上限的90%，请注意控制</p>
-              <small>10分钟前</small>
+              <h6>您有 {{ stats.unreadCount }} 条未读消息</h6>
+              <p>请及时查看消息中心了解最新动态</p>
             </div>
           </div>
-          <div class="notice-item info">
-            <i class="bi bi-info-circle-fill"></i>
-            <div class="notice-content">
-              <h6>系统维护通知</h6>
-              <p>系统将于今晚22:00-23:00进行维护升级</p>
-              <small>2小时前</small>
-            </div>
-          </div>
-          <div v-if="stats.alerts === 0" class="empty-notice">
+          <div v-else class="empty-notice">
             <i class="bi bi-check-circle"></i>
-            <span>暂无异常通知</span>
+            <span>暂无未读消息</span>
           </div>
         </div>
       </div>
@@ -142,21 +136,23 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
+import { getDashboard } from '@/api/workshop'
 import { getMyApplications } from '@/api/application'
 
+const loading = ref(false)
 const stats = ref({
-  todayEnergy: '1,256',
-  currentPower: '89.5',
-  pendingApply: 3,
-  pendingApproval: 2,
-  alerts: 1
+  todayEnergy: '0',
+  monthEnergy: '0',
+  pendingApply: 0,
+  pendingApproval: 0,
+  unreadCount: 0
 })
 
 const currentTime = ref('')
 const recentApplications = ref([])
 const powerChartRef = ref(null)
 let powerChart = null
-const approvedApplies = ref([])
+const todayHourlyData = ref([])
 
 function getStatusClass(status) {
   const map = {
@@ -178,57 +174,55 @@ function getStatusText(status) {
   return map[status] || status
 }
 
-// 根据已批准申请生成功率数据
-function generatePowerData() {
-  const data = []
-  const now = new Date()
-  const currentHour = now.getHours()
-  
-  for (let h = 0; h < 24; h++) {
-    let basePower = 15 // 基础负载
-    
-    // 叠加已批准申请的功率
-    approvedApplies.value.forEach(apply => {
-      if (h >= apply.start && h < apply.end) {
-        basePower += apply.power * (0.85 + Math.random() * 0.2)
-      }
-    })
-    
-    // 未来时段使用预估值
-    if (h > currentHour) {
-      basePower = h >= 8 && h < 18 ? 60 + Math.random() * 20 : 15
-    }
-    
-    data.push(Math.round(basePower * 10) / 10)
-  }
-  return data
-}
-
-// 渲染功率曲线图
+// 渲染功率曲线图（使用后端真实数据）
 function renderPowerChart() {
   if (!powerChart) return
   
-  const powerData = generatePowerData()
   const currentHour = new Date().getHours()
   const hours = Array.from({ length: 24 }, (_, i) => i + ':00')
   
-  // 更新当前功率统计
-  stats.value.currentPower = powerData[currentHour].toFixed(1)
+  // 按小时聚合功率数据
+  const hourlyPower = new Array(24).fill(null)
+  todayHourlyData.value.forEach(item => {
+    const hour = item.recordHour
+    if (hour >= 0 && hour < 24) {
+      hourlyPower[hour] = (hourlyPower[hour] || 0) + parseFloat(item.power || 0)
+    }
+  })
   
-  // 计算今日能耗
-  const totalEnergy = powerData.slice(0, currentHour + 1).reduce((sum, p) => sum + p, 0)
-  stats.value.todayEnergy = Math.round(totalEnergy).toLocaleString()
+  // 实际功率：只到当前小时
+  const actualData = hourlyPower.map((v, i) => i <= currentHour ? (v || 0) : null)
+  // 预测功率：当前小时之后，简单用最近有数据的小时值做预估
+  const lastKnownPower = actualData.filter(v => v !== null).pop() || 0
+  const predictData = hourlyPower.map((v, i) => i > currentHour ? (lastKnownPower * (0.8 + Math.random() * 0.2)) : null)
   
   powerChart.setOption({
     tooltip: { 
-      trigger: 'axis', 
-      formatter: '{b}<br/>功率: {c} kW' 
+      trigger: 'axis',
+      formatter: function(params) {
+        let result = params[0].axisValue + '<br/>'
+        params.forEach(p => {
+          if (p.value != null) {
+            result += p.marker + ' ' + p.seriesName + ': ' + Math.round(p.value * 10) / 10 + ' kW<br/>'
+          }
+        })
+        return result
+      }
+    },
+    legend: {
+      data: [
+        { name: '实际功率' },
+        { name: '预测功率', itemStyle: { opacity: 0 }, lineStyle: { type: 'dashed', color: '#94a3b8' } }
+      ],
+      top: 0,
+      right: 0,
+      textStyle: { fontSize: 11 }
     },
     grid: { 
       left: '3%', 
       right: '4%', 
       bottom: '3%', 
-      top: '10%', 
+      top: '30px', 
       containLabel: true 
     },
     xAxis: { 
@@ -246,7 +240,8 @@ function renderPowerChart() {
         name: '实际功率',
         type: 'line',
         smooth: true,
-        data: powerData.slice(0, currentHour + 1),
+        data: actualData,
+        connectNulls: false,
         lineStyle: { color: '#3b82f6', width: 2 },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
@@ -261,7 +256,8 @@ function renderPowerChart() {
         name: '预测功率',
         type: 'line',
         smooth: true,
-        data: powerData.map((v, i) => i > currentHour ? v : null),
+        data: predictData,
+        connectNulls: false,
         lineStyle: { color: '#94a3b8', type: 'dashed', width: 2 },
         symbol: 'none'
       }
@@ -270,39 +266,52 @@ function renderPowerChart() {
 }
 
 async function loadData() {
+  loading.value = true
   try {
-    const res = await getMyApplications({ page: 1, size: 100 })
-    if (res && res.code === 200 && res.data) {
-      const list = res.data.records || res.data || []
-      recentApplications.value = list.slice(0, 5)
+    // 调用后端 dashboard 接口获取概览数据
+    const dashboardRes = await getDashboard()
+    if (dashboardRes && dashboardRes.code === 200 && dashboardRes.data) {
+      const data = dashboardRes.data
+      
+      // 今日用电量
+      stats.value.todayEnergy = formatNumber(data.todayEnergy || 0)
+      
+      // 本月用电量
+      stats.value.monthEnergy = formatNumber(data.monthEnergy || 0)
+      
+      // 未读消息数
+      stats.value.unreadCount = data.unreadCount || 0
+      
+      // 最近申请状态（最近5条）
+      const applications = data.recentApplications || []
+      recentApplications.value = applications
       
       // 统计待处理申请数
-      const pending = list.filter(a => a.status === 'PENDING')
+      const pending = applications.filter(a => a.status === 'PENDING')
       stats.value.pendingApply = pending.length
       stats.value.pendingApproval = pending.length
       
-      // 提取已批准的申请用于功率曲线
-      const approved = list.filter(a => (a.status || '').toUpperCase() === 'APPROVED')
-      approvedApplies.value = approved.map(a => {
-        const startH = parseInt((a.startTime || '08:00').split(':')[0])
-        const endH = parseInt((a.endTime || '18:00').split(':')[0])
-        return {
-          id: a.applicationNo,
-          equipment: a.equipmentName || '设备',
-          power: a.power || 50,
-          start: startH,
-          end: endH
-        }
-      })
+      // 使用后端返回的今日能耗真实数据渲染功率曲线
+      todayHourlyData.value = data.todayHourlyData || []
       
       // 渲染图表
       renderPowerChart()
     }
   } catch (e) {
-    console.warn('加载申请列表失败', e)
+    console.warn('加载首页数据失败', e)
     recentApplications.value = []
     renderPowerChart()
+  } finally {
+    loading.value = false
   }
+}
+
+// 格式化数字显示
+function formatNumber(num) {
+  if (num === null || num === undefined) return '0'
+  const n = parseFloat(num)
+  if (isNaN(n)) return '0'
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }
 
 onMounted(() => {

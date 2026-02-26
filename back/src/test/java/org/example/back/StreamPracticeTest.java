@@ -3,7 +3,7 @@ package org.example.back;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.UserRole;
 import org.example.back.entity.enums.UserStatus;
-import org.example.back.mapper.UserMapper;
+import org.example.back.mapper.common.UserMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

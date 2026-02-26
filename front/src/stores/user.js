@@ -32,9 +32,23 @@ export const useUserStore = defineStore('user', () => {
     if (res.code === 200) {
       user.value = res.data
       localStorage.setItem('user', JSON.stringify(res.data))
+      // 登录后获取完整用户信息(包含头像)
+      await fetchCurrentUser()
       return res.data
     }
     throw new Error(res.message)
+  }
+
+  async function fetchCurrentUser() {
+    try {
+      const res = await getCurrentUser()
+      if (res.code === 200 && res.data) {
+        user.value = { ...user.value, ...res.data }
+        localStorage.setItem('user', JSON.stringify(user.value))
+      }
+    } catch (e) {
+      console.error('获取用户信息失败', e)
+    }
   }
 
   async function doLogout() {
@@ -48,6 +62,8 @@ export const useUserStore = defineStore('user', () => {
     if (savedUser) {
       try {
         user.value = JSON.parse(savedUser)
+        // 初始化时也获取最新用户信息
+        fetchCurrentUser()
       } catch (e) {
         localStorage.removeItem('user')
       }
@@ -64,6 +80,7 @@ export const useUserStore = defineStore('user', () => {
     homePage,
     doLogin,
     doLogout,
-    initUser
+    initUser,
+    fetchCurrentUser
   }
 })

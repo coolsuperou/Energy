@@ -51,12 +51,14 @@
               <el-button type="success" @click="handleApprove(item)"><i class="bi bi-check-lg"></i> 批准</el-button>
               <el-button @click="handleAdjust(item)"><i class="bi bi-pencil"></i> 调整</el-button>
               <el-button type="danger" plain @click="handleReject(item)"><i class="bi bi-x-lg"></i> 拒绝</el-button>
+              <el-button @click="viewDetail(item)"><i class="bi bi-eye"></i> 详情</el-button>
             </template>
             <template v-else>
               <span :class="['status-result', 'status-' + item.status.toLowerCase()]">
                 <i :class="['bi', item.status === 'APPROVED' ? 'bi-check-circle' : 'bi-x-circle']"></i>
                 {{ item.status === 'APPROVED' ? '已批准' : '已拒绝' }}
               </span>
+              <el-button size="small" @click="viewDetail(item)"><i class="bi bi-eye"></i> 详情</el-button>
             </template>
           </div>
         </div>
@@ -114,6 +116,43 @@
         <el-button type="primary" @click="submitApproval" :loading="submitting">确认</el-button>
       </template>
     </el-dialog>
+
+    <!-- 申请详情对话框 -->
+    <el-dialog v-model="detailDialog.visible" title="申请详情" width="650px" destroy-on-close>
+      <div v-if="detailDialog.data" class="detail-content">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="申请编号">{{ detailDialog.data.applicationNo }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <span :class="['badge', getStatusBadgeClass(detailDialog.data.status)]">{{ getStatusText(detailDialog.data.status) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="申请人">{{ detailDialog.data.userName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="申请功率">{{ detailDialog.data.power }} kW</el-descriptions-item>
+          <el-descriptions-item label="申请日期">{{ detailDialog.data.applyDate }}</el-descriptions-item>
+          <el-descriptions-item label="用电时段">{{ formatTime(detailDialog.data.startTime) }} - {{ formatTime(detailDialog.data.endTime) }}</el-descriptions-item>
+          <el-descriptions-item label="紧急程度">
+            <span :class="['badge', getUrgencyClass(detailDialog.data.urgency)]">{{ getUrgencyText(detailDialog.data.urgency) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="提交时间">{{ formatCreatedAt(detailDialog.data.createdAt) }}</el-descriptions-item>
+          <el-descriptions-item label="用途说明" :span="2">{{ detailDialog.data.purpose || '-' }}</el-descriptions-item>
+          <el-descriptions-item v-if="detailDialog.data.status !== 'PENDING'" label="审批意见" :span="2">
+            {{ detailDialog.data.comment || '-' }}
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 评论交流组件 -->
+        <CommentSection 
+          related-type="application" 
+          :related-id="detailDialog.data.id" 
+        />
+      </div>
+      <template #footer>
+        <el-button @click="detailDialog.visible = false">关闭</el-button>
+        <template v-if="detailDialog.data?.status === 'PENDING'">
+          <el-button type="success" @click="approveFromDetail">批准</el-button>
+          <el-button type="danger" @click="rejectFromDetail">拒绝</el-button>
+        </template>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -121,6 +160,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getApplications, getPendingApplications, approveApplication, rejectApplication, adjustApplication } from '@/api/application'
+import CommentSection from '@/components/CommentSection.vue'
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -129,6 +169,12 @@ const dialogVisible = ref(false)
 const dialogType = ref('approve')
 const dialogTitle = ref('')
 const currentApp = ref(null)
+
+// 详情对话框
+const detailDialog = ref({
+  visible: false,
+  data: null
+})
 
 // 筛选条件
 const filter = ref({
@@ -221,8 +267,15 @@ async function loadApplications() {
     
     const res = await getApplications(params)
     if (res && res.code === 200 && res.data) {
-      applications.value = (res.data.records || res.data || []).map(a => ({ ...a, selected: false }))
-      pagination.total = res.data.total || applications.value.length
+      const urgencyOrder = { 'CRITICAL': 0, 'URGENT': 1, 'NORMAL': 2 }
+      const list = (res.data.records || res.data || []).map(a => ({ ...a, selected: false }))
+      list.sort((a, b) => {
+        const oa = urgencyOrder[(a.urgency || '').toUpperCase()] ?? 3
+        const ob = urgencyOrder[(b.urgency || '').toUpperCase()] ?? 3
+        return oa - ob
+      })
+      applications.value = list
+      pagination.total = res.data.total || list.length
     }
     
     // 加载待审批数量
@@ -322,6 +375,54 @@ async function batchApprove() {
       console.error('批量审批失败', e)
     }
   }
+}
+
+// 查看申请详情
+function viewDetail(item) {
+  detailDialog.value = {
+    visible: true,
+    data: item
+  }
+}
+
+// 从详情页批准
+function approveFromDetail() {
+  if (detailDialog.value.data) {
+    detailDialog.value.visible = false
+    handleApprove(detailDialog.value.data)
+  }
+}
+
+// 从详情页拒绝
+function rejectFromDetail() {
+  if (detailDialog.value.data) {
+    detailDialog.value.visible = false
+    handleReject(detailDialog.value.data)
+  }
+}
+
+// 获取状态徽章样式
+function getStatusBadgeClass(status) {
+  const s = (status || '').toUpperCase()
+  const map = {
+    'PENDING': 'bg-warning text-dark',
+    'APPROVED': 'bg-success',
+    'REJECTED': 'bg-danger',
+    'ADJUSTED': 'bg-info'
+  }
+  return map[s] || 'bg-secondary'
+}
+
+// 获取状态文本
+function getStatusText(status) {
+  const s = (status || '').toUpperCase()
+  const map = {
+    'PENDING': '待审批',
+    'APPROVED': '已批准',
+    'REJECTED': '已拒绝',
+    'ADJUSTED': '已调整'
+  }
+  return map[s] || status
 }
 
 onMounted(() => {

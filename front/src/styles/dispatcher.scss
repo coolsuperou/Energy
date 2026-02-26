@@ -371,11 +371,36 @@
 // 内容网格
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 3fr 2fr;
   gap: 20px;
   
-  > .card:nth-child(3), > .card:nth-child(4) {
-    grid-column: span 1;
+  // 第一行两个卡片等高
+  > .metrics-card,
+  > .card:nth-child(2) {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    
+    .card-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+  }
+  
+  > .metrics-card .card-body {
+    align-items: stretch;
+    
+    .metrics-list { width: 100%; }
+  }
+  
+  > .card:nth-child(2) .card-body .action-grid {
+    width: 100%;
+  }
+  
+  // 待审批申请卡片全宽
+  > .pending-approval {
+    grid-column: 1 / -1;
   }
 }
 

@@ -8,7 +8,7 @@ import org.example.back.entity.User;
 import org.example.back.entity.enums.TaskStatus;
 import org.example.back.entity.enums.TaskType;
 import org.example.back.mapper.dispatcher.TaskMapper;
-import org.example.back.mapper.UserMapper;
+import org.example.back.mapper.common.UserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -81,7 +81,8 @@ public class TaskService {
 
     /**
      * 派单
-     * 将工单分配给指定的巡检员，状态变为ASSIGNED（已分派待接单）
+     * 将工单分配给指定的巡检员，状态直接变为IN_PROGRESS（进行中）
+     * 根据需求：派单后任务状态直接变为进行中，无需巡检员接单
      */
     public void assignTask(Long taskId, Long assigneeId) {
         Task task = taskMapper.selectById(taskId);
@@ -90,7 +91,7 @@ public class TaskService {
         }
         
         task.setAssignedTo(assigneeId);
-        task.setStatus(TaskStatus.ASSIGNED);
+        task.setStatus(TaskStatus.IN_PROGRESS);
         
         taskMapper.updateById(task);
     }
@@ -138,11 +139,12 @@ public class TaskService {
 
     /**
      * 获取今日待完成任务
+     * 查询进行中且截止日期在今天或之前的任务
      */
     public List<Task> getTodayPendingTasks(Long userId) {
         QueryWrapper<Task> wrapper = new QueryWrapper<>();
         wrapper.eq("assigned_to", userId);
-        wrapper.in("status", TaskStatus.ASSIGNED, TaskStatus.IN_PROGRESS);
+        wrapper.eq("status", TaskStatus.IN_PROGRESS);
         wrapper.le("due_date", LocalDate.now());
         wrapper.orderByAsc("due_date");
         
@@ -153,39 +155,12 @@ public class TaskService {
     }
 
     /**
-     * 接单
-     * 巡检员接受分派的任务，状态从ASSIGNED变为IN_PROGRESS
-     */
-    public void acceptTask(Long taskId, Long userId) {
-        Task task = taskMapper.selectById(taskId);
-        if (task == null) {
-            throw new RuntimeException("任务不存在");
-        }
-        
-        if (!userId.equals(task.getAssignedTo())) {
-            throw new RuntimeException("只能接受分配给自己的任务");
-        }
-        
-        if (task.getStatus() != TaskStatus.ASSIGNED) {
-            throw new RuntimeException("任务状态不正确，无法接单");
-        }
-        
-        task.setStatus(TaskStatus.IN_PROGRESS);
-        taskMapper.updateById(task);
-    }
-
-    /**
      * 获取我的任务统计
-     * 返回待接单、进行中、今日完成、服务评分等统计数据
+     * 返回进行中、今日完成等统计数据
+     * 注：移除了"待接单"统计，因为派单后直接进入进行中状态
      */
     public java.util.Map<String, Object> getMyTaskStats(Long userId) {
         java.util.Map<String, Object> stats = new java.util.HashMap<>();
-        
-        // 待接单（已分派但未开始）
-        QueryWrapper<Task> pendingWrapper = new QueryWrapper<>();
-        pendingWrapper.eq("assigned_to", userId);
-        pendingWrapper.eq("status", TaskStatus.ASSIGNED);
-        Long pending = taskMapper.selectCount(pendingWrapper);
         
         // 进行中
         QueryWrapper<Task> inProgressWrapper = new QueryWrapper<>();
@@ -200,13 +175,8 @@ public class TaskService {
         completedTodayWrapper.ge("completed_at", LocalDate.now().atStartOfDay());
         Long completedToday = taskMapper.selectCount(completedTodayWrapper);
         
-        // 服务评分（暂时固定为4.9，后续可以从评价表计算）
-        Double rating = 4.9;
-        
-        stats.put("pending", pending);
         stats.put("inProgress", inProgress);
         stats.put("completed", completedToday);
-        stats.put("rating", rating);
         
         return stats;
     }

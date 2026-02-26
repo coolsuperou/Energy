@@ -55,3 +55,10 @@ export function rejectApplication(id, data) {
 export function adjustApplication(id, data) {
   return request.put(`/applications/${id}/adjust`, data)
 }
+
+/**
+ * 撤回申请（仅待审批状态可撤回）
+ */
+export function cancelApplication(id) {
+  return request.put(`/applications/${id}/cancel`)
+}

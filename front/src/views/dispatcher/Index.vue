@@ -1,69 +1,99 @@
 <template>
-  <div class="dispatcher-home">
+  <div class="dispatcher-home" v-loading="loading">
     <!-- 统计卡片 -->
     <div class="stat-cards">
-      <div class="stat-card">
+      <div class="stat-card" @click="goTo('/dispatcher/approval')">
         <div class="stat-icon orange"><i class="bi bi-clipboard-check"></i></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.pendingApproval }}</div>
+          <div class="stat-value">
+            {{ stats.pendingApplicationCount }}
+            <el-badge v-if="stats.pendingApplicationCount > 0" :value="stats.pendingApplicationCount" class="stat-badge" />
+          </div>
           <div class="stat-label">待审批申请</div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-card" @click="goTo('/dispatcher/order')">
+        <div class="stat-icon blue"><i class="bi bi-list-task"></i></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.pendingAlerts }}</div>
-          <div class="stat-label">待处理预警</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue"><i class="bi bi-speedometer2"></i></div>
-        <div class="stat-info">
-          <div class="stat-value">{{ stats.loadRate }}%</div>
-          <div class="stat-label">当前负荷率</div>
+          <div class="stat-value">{{ stats.inProgressTaskCount }}</div>
+          <div class="stat-label">进行中工单</div>
         </div>
       </div>
       <div class="stat-card">
         <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
         <div class="stat-info">
-          <div class="stat-value">{{ stats.todayApproved }}</div>
+          <div class="stat-value">{{ todayMetrics.todayApprovedCount }}</div>
           <div class="stat-label">今日已审批</div>
         </div>
       </div>
     </div>
 
     <div class="content-grid">
-      <!-- 负荷监控 -->
-      <div class="card load-monitor">
-        <div class="card-header">全厂负荷监控</div>
+      <!-- 今日关键指标 -->
+      <div class="card metrics-card">
+        <div class="card-header">
+          <span><i class="bi bi-graph-up me-2"></i>今日关键指标</span>
+          <small class="text-muted">更新于 {{ currentTime }}</small>
+        </div>
         <div class="card-body">
-          <div class="load-chart">
-            <svg width="180" height="180" viewBox="0 0 180 180">
-              <circle cx="90" cy="90" r="70" fill="none" stroke="#e2e8f0" stroke-width="14"/>
-              <circle cx="90" cy="90" r="70" fill="none" stroke="url(#gradient)" stroke-width="14" 
-                  :stroke-dasharray="440" :stroke-dashoffset="440 - 440 * stats.loadRate / 100" stroke-linecap="round"
-                  transform="rotate(-90 90 90)"/>
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" style="stop-color:#3b82f6"/>
-                  <stop offset="100%" style="stop-color:#8b5cf6"/>
-                </linearGradient>
-              </defs>
-            </svg>
-            <div class="load-value">
-              <div class="value">{{ stats.loadRate }}%</div>
-              <div class="label">负荷率</div>
+          <div class="metrics-list">
+            <div class="metric-row">
+              <div class="metric-icon blue"><i class="bi bi-lightning-charge"></i></div>
+              <div class="metric-label">今日用电量</div>
+              <div class="metric-value">{{ formatNumber(todayMetrics.todayTotalEnergy) }} <span class="metric-unit">kWh</span></div>
+            </div>
+            <div class="metric-row">
+              <div class="metric-icon green"><i class="bi bi-currency-yen"></i></div>
+              <div class="metric-label">今日费用</div>
+              <div class="metric-value">{{ formatNumber(todayMetrics.todayTotalCost) }} <span class="metric-unit">元</span></div>
+            </div>
+            <div class="metric-row">
+              <div class="metric-icon purple"><i class="bi bi-calendar-month"></i></div>
+              <div class="metric-label">本月用电量</div>
+              <div class="metric-value">{{ formatNumber(todayMetrics.monthTotalEnergy) }} <span class="metric-unit">kWh</span></div>
+            </div>
+            <div class="metric-row">
+              <div class="metric-icon orange"><i class="bi bi-clipboard-check"></i></div>
+              <div class="metric-label">今日审批数</div>
+              <div class="metric-value">{{ todayMetrics.todayApprovedCount }} <span class="metric-unit">件</span></div>
+            </div>
+            <div class="metric-row">
+              <div class="metric-icon teal"><i class="bi bi-check2-square"></i></div>
+              <div class="metric-label">完成工单数</div>
+              <div class="metric-value">{{ todayMetrics.todayCompletedTaskCount }} <span class="metric-unit">件</span></div>
             </div>
           </div>
-          <div class="load-stats">
-            <div class="load-stat">
-              <div class="value">{{ stats.currentPower.toLocaleString() }}</div>
-              <div class="label">当前功率 (kW)</div>
-            </div>
-            <div class="load-stat">
-              <div class="value">{{ stats.totalCapacity.toLocaleString() }}</div>
-              <div class="label">总容量 (kW)</div>
-            </div>
+        </div>
+      </div>
+
+      <!-- 快捷入口 -->
+      <div class="card">
+        <div class="card-header">快捷入口</div>
+        <div class="card-body">
+          <div class="action-grid">
+            <router-link to="/dispatcher/approval" class="quick-action">
+              <div class="action-icon orange">
+                <i class="bi bi-clipboard-check"></i>
+                <el-badge v-if="stats.pendingApplicationCount > 0" :value="stats.pendingApplicationCount" class="action-badge" />
+              </div>
+              <span>审批管理</span>
+            </router-link>
+            <router-link to="/dispatcher/task" class="quick-action">
+              <div class="action-icon blue"><i class="bi bi-list-task"></i></div>
+              <span>工单管理</span>
+            </router-link>
+            <router-link to="/dispatcher/dispatch" class="quick-action">
+              <div class="action-icon green"><i class="bi bi-sliders"></i></div>
+              <span>调度管理</span>
+            </router-link>
+            <router-link to="/dispatcher/energy" class="quick-action">
+              <div class="action-icon purple"><i class="bi bi-graph-up"></i></div>
+              <span>能耗统计</span>
+            </router-link>
+            <router-link to="/dispatcher/report" class="quick-action">
+              <div class="action-icon teal"><i class="bi bi-file-earmark-bar-graph"></i></div>
+              <span>报表中心</span>
+            </router-link>
           </div>
         </div>
       </div>
@@ -102,85 +132,46 @@
         </div>
       </div>
 
-      <!-- 实时预警 -->
-      <div class="card">
-        <div class="card-header">
-          <span>实时预警</span>
-          <router-link to="/dispatcher/alert" class="card-link">查看全部 →</router-link>
-        </div>
-        <div class="card-body">
-          <div v-for="alert in alerts" :key="alert.id" :class="['notice-item', alert.level]">
-            <i :class="['bi', alert.level === 'error' ? 'bi-exclamation-circle-fill' : 'bi-exclamation-triangle-fill']"></i>
-            <div class="notice-content">
-              <h6>{{ alert.title }}</h6>
-              <p>{{ alert.description }}</p>
-              <div class="notice-actions">
-                <button class="btn btn-primary btn-sm" @click="createOrder(alert)">创建工单</button>
-                <button class="btn btn-outline-secondary btn-sm" @click="ignoreAlert(alert.id)">
-                  {{ alert.level === 'error' ? '查看详情' : '忽略' }}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div v-if="alerts.length === 0" class="empty-state">
-            <i class="bi bi-check-circle"></i>
-            <span>暂无预警信息</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- 车间用电分配 -->
-      <div class="card">
-        <div class="card-header">
-          <span>各车间用电分配</span>
-          <router-link to="/dispatcher/dispatch" class="card-link">调度管理 →</router-link>
-        </div>
-        <div class="card-body">
-          <div v-for="workshop in workshopStats" :key="workshop.id" class="workshop-item">
-            <div class="workshop-header">
-              <span class="workshop-name">{{ workshop.name }}</span>
-              <div class="workshop-status">
-                <span :class="['badge', workshop.statusClass]">{{ workshop.statusText }}</span>
-                <span class="workshop-power">{{ workshop.current }}/{{ workshop.limit }} kW</span>
-              </div>
-            </div>
-            <div class="progress-bar-wrapper">
-              <div class="progress-bar" :class="workshop.barClass" :style="{ width: Math.min(workshop.percent, 100) + '%' }"></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getPendingApplications, getApplications, approveApplication, rejectApplication } from '@/api/application'
-import { getAlerts } from '@/api/energy'
+import { getDashboard } from '@/api/dispatcher'
+import { getPendingApplications, approveApplication, rejectApplication } from '@/api/application'
 
 const router = useRouter()
+const loading = ref(false)
+const currentTime = ref('')
 
 // 统计数据
-const stats = ref({
-  pendingApproval: 0,
-  pendingAlerts: 0,
-  loadRate: 0,
-  todayApproved: 0,
-  currentPower: 0,
-  totalCapacity: 3120
+const stats = reactive({
+  pendingApplicationCount: 0,
+  inProgressTaskCount: 0
+})
+
+// 今日关键指标
+const todayMetrics = reactive({
+  todayTotalEnergy: 0,
+  todayTotalCost: 0,
+  monthTotalEnergy: 0,
+  todayApprovedCount: 0,
+  todayCompletedTaskCount: 0
 })
 
 // 待审批申请
 const pendingApplications = ref([])
 
-// 预警信息 - 根据车间用电情况动态生成
-const alerts = ref([])
-
-// 车间用电统计
-const workshopStats = ref([])
+// 格式化数字
+function formatNumber(num) {
+  if (num === null || num === undefined) return '0'
+  const n = parseFloat(num)
+  if (isNaN(n)) return '0'
+  return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
 
 // 格式化时间
 function formatTime(time) {
@@ -202,14 +193,49 @@ function getUrgencyText(urgency) {
   return map[u] || '待审批'
 }
 
+// 跳转到指定页面
+function goTo(path) {
+  router.push(path)
+}
+
+// 加载工作台数据
+async function loadDashboard() {
+  try {
+    const res = await getDashboard()
+    if (res && res.code === 200 && res.data) {
+      const data = res.data
+      
+      // 更新统计数据
+      stats.pendingApplicationCount = data.pendingApplicationCount || 0
+      stats.inProgressTaskCount = data.inProgressTaskCount || 0
+      
+      // 更新今日关键指标
+      if (data.todayMetrics) {
+        todayMetrics.todayTotalEnergy = data.todayMetrics.todayTotalEnergy || 0
+        todayMetrics.todayTotalCost = data.todayMetrics.todayTotalCost || 0
+        todayMetrics.monthTotalEnergy = data.todayMetrics.monthTotalEnergy || 0
+        todayMetrics.todayApprovedCount = data.todayMetrics.todayApprovedCount || 0
+        todayMetrics.todayCompletedTaskCount = data.todayMetrics.todayCompletedTaskCount || 0
+      }
+    }
+  } catch (e) {
+    console.warn('加载工作台数据失败', e)
+  }
+}
+
 // 加载待审批申请
 async function loadPendingApplications() {
   try {
     const res = await getPendingApplications({ page: 1, size: 100 })
     if (res && res.code === 200 && res.data) {
       const data = res.data.records || res.data || []
+      const urgencyOrder = { 'CRITICAL': 0, 'URGENT': 1, 'NORMAL': 2 }
+      data.sort((a, b) => {
+        const oa = urgencyOrder[(a.urgency || '').toUpperCase()] ?? 3
+        const ob = urgencyOrder[(b.urgency || '').toUpperCase()] ?? 3
+        return oa - ob
+      })
       pendingApplications.value = data.slice(0, 3)
-      stats.value.pendingApproval = data.length
     }
   } catch (e) {
     console.warn('加载待审批申请失败', e)
@@ -217,121 +243,16 @@ async function loadPendingApplications() {
   }
 }
 
-// 加载已审批统计
-async function loadApprovedStats() {
+// 加载所有数据
+async function loadAllData() {
+  loading.value = true
   try {
-    const res = await getApplications({ page: 1, size: 100, status: 'APPROVED' })
-    if (res && res.code === 200 && res.data) {
-      const data = res.data.records || res.data || []
-      // 统计今日已审批数量
-      const today = new Date().toISOString().split('T')[0]
-      const todayApproved = data.filter(a => {
-        const approvedDate = a.approvedAt ? a.approvedAt.split('T')[0] : ''
-        return approvedDate === today
-      })
-      stats.value.todayApproved = todayApproved.length
-      
-      // 计算当前功率和负荷率
-      const now = new Date()
-      const currentHour = now.getHours()
-      let totalPower = 0
-      
-      data.forEach(app => {
-        const startH = parseInt((app.startTime || '00:00').split(':')[0])
-        const endH = parseInt((app.endTime || '00:00').split(':')[0])
-        if (currentHour >= startH && currentHour < endH) {
-          totalPower += parseFloat(app.power) || 0
-        }
-      })
-      
-      stats.value.currentPower = Math.round(totalPower)
-      stats.value.loadRate = Math.round((totalPower / stats.value.totalCapacity) * 100 * 10) / 10
-      
-      // 生成车间统计数据
-      generateWorkshopStats(data)
-      
-      // 生成预警信息
-      generateAlerts()
-    }
-  } catch (e) {
-    console.warn('加载审批统计失败', e)
-  }
-}
-
-// 生成车间统计数据
-function generateWorkshopStats(applications) {
-  // 模拟车间数据，实际应从后端获取
-  const workshops = [
-    { id: 1, name: '生产一车间', limit: 800 },
-    { id: 2, name: '生产二车间', limit: 700 },
-    { id: 3, name: '装配车间', limit: 600 },
-    { id: 4, name: '仓储车间', limit: 500 }
-  ]
-  
-  const now = new Date()
-  const currentHour = now.getHours()
-  
-  workshopStats.value = workshops.map(ws => {
-    // 计算该车间当前功率
-    let current = 15 // 基础负载
-    applications.forEach(app => {
-      if (app.workshopId === ws.id) {
-        const startH = parseInt((app.startTime || '00:00').split(':')[0])
-        const endH = parseInt((app.endTime || '00:00').split(':')[0])
-        if (currentHour >= startH && currentHour < endH) {
-          current += parseFloat(app.power) || 0
-        }
-      }
-    })
-    
-    // 添加随机波动
-    current = Math.round(current * (0.9 + Math.random() * 0.2))
-    
-    const percent = Math.round((current / ws.limit) * 100)
-    let statusText = '正常'
-    let statusClass = 'bg-success'
-    let barClass = 'bg-success'
-    
-    if (percent >= 100) {
-      statusText = '超限'
-      statusClass = 'bg-danger'
-      barClass = 'bg-danger'
-    } else if (percent >= 80) {
-      statusText = '预警'
-      statusClass = 'bg-warning text-dark'
-      barClass = 'bg-warning'
-    }
-    
-    return {
-      ...ws,
-      current,
-      percent,
-      statusText,
-      statusClass,
-      barClass
-    }
-  })
-}
-
-// 生成预警信息
-async function generateAlerts() {
-  try {
-    const res = await getAlerts()
-    if (res && res.code === 200 && res.data) {
-      const alertData = res.data.alerts || []
-      
-      alerts.value = alertData.slice(0, 3).map(alert => ({
-        id: alert.id,
-        level: alert.level === 'critical' ? 'error' : 'warning',
-        title: alert.title,
-        description: alert.description,
-        workshopId: alert.workshopId
-      }))
-      
-      stats.value.pendingAlerts = alertData.length
-    }
-  } catch (e) {
-    console.error('加载预警数据失败', e)
+    await Promise.all([
+      loadDashboard(),
+      loadPendingApplications()
+    ])
+  } finally {
+    loading.value = false
   }
 }
 
@@ -342,8 +263,8 @@ async function handleApprove(id) {
     const res = await approveApplication(id, { comment: '批准' })
     if (res.code === 200) {
       ElMessage.success('审批成功，已通知申请人')
+      loadDashboard()
       loadPendingApplications()
-      loadApprovedStats()
     }
   } catch (e) {
     if (e !== 'cancel') {
@@ -362,6 +283,7 @@ async function handleReject(id) {
     const res = await rejectApplication(id, { comment: value || '拒绝' })
     if (res.code === 200) {
       ElMessage.success('已拒绝，已通知申请人')
+      loadDashboard()
       loadPendingApplications()
     }
   } catch (e) {
@@ -376,24 +298,152 @@ function goToApproval(id) {
   router.push('/dispatcher/approval')
 }
 
-// 创建工单
-function createOrder(alert) {
-  ElMessage.info('工单创建功能开发中')
-}
-
-// 忽略预警
-function ignoreAlert(id) {
-  alerts.value = alerts.value.filter(a => a.id !== id)
-  stats.value.pendingAlerts = alerts.value.length
-  ElMessage.success('已忽略该预警')
-}
-
 onMounted(() => {
-  loadPendingApplications()
-  loadApprovedStats()
+  const now = new Date()
+  currentTime.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+  
+  loadAllData()
 })
 </script>
 
 <style lang="scss">
 @use '@/styles/dispatcher.scss';
+
+// 今日关键指标样式
+.metrics-card {
+  .metrics-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .metric-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.2s;
+    
+    &:last-child { border-bottom: none; }
+    &:hover { background: #f8fafc; }
+  }
+  
+  .metric-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    
+    &.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    &.green { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+    &.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+    &.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    &.teal { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+  }
+  
+  .metric-label {
+    flex: 1;
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+  
+  .metric-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: right;
+    
+    .metric-unit {
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: #94a3b8;
+      margin-left: 2px;
+    }
+  }
+}
+
+// 快捷入口样式
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #475569;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: #f1f5f9;
+    transform: translateY(-2px);
+    color: #1e293b;
+  }
+  
+  .action-icon {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    
+    &.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    &.green { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+    &.orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+    &.red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+    &.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    &.teal { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+    
+    .action-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+    }
+  }
+  
+  span {
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
+
+// 统计卡片 badge 样式
+.stat-card {
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .stat-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .stat-badge {
+    margin-left: 0.25rem;
+  }
+}
 </style>

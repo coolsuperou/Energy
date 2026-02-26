@@ -10,11 +10,14 @@ public enum Priority {
     /** 低优先级 普通任务 */
     LOW("low", "低"),
     
-    /** 中优先级 一般重要任务 */
-    MEDIUM("medium", "中"),
+    /** 普通优先级 一般任务 */
+    NORMAL("normal", "普通"),
     
     /** 高优先级 重要紧急任务 */
-    HIGH("high", "高");
+    HIGH("high", "高"),
+    
+    /** 紧急优先级 最高优先级 */
+    URGENT("urgent", "紧急");
 
     /** 数据库存储值 */
     @EnumValue

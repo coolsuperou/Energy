@@ -30,6 +30,9 @@ public class Feedback {
     /** 问题位置 */
     private String location;
     
+    /** 关联设备ID */
+    private Long equipmentId;
+    
     /** 紧急程度 normal普通 urgent紧急 */
     private String urgency;
     
@@ -41,6 +44,9 @@ public class Feedback {
     
     /** 处理回复 */
     private String reply;
+    
+    /** 反馈图片URL，多个逗号分隔 */
+    private String images;
     
     /** 处理人用户ID */
     private Long handledBy;

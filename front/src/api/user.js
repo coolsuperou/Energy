@@ -63,3 +63,37 @@ export function getWorkStats(days = 7) {
     params: { days }
   })
 }
+
+/**
+ * 上传用户头像
+ * @param {File} file - 图片文件
+ */
+export function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  return request.post('/users/current/avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 获取用户头像URL
+ */
+export function getAvatar() {
+  return request.get('/users/current/avatar')
+}
+
+/**
+ * 修改密码
+ * @param {string} oldPassword - 原密码
+ * @param {string} newPassword - 新密码
+ */
+export function changePassword(oldPassword, newPassword) {
+  return request.put('/users/current/password', {
+    oldPassword,
+    newPassword
+  })
+}

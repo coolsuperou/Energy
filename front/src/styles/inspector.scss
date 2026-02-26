@@ -397,14 +397,6 @@
     margin-top: 6px;
 }
 
-/* 评分星星 */
-.rating-stars {
-    display: flex;
-    gap: 4px;
-    color: #f97316;
-    font-size: 18px;
-}
-
 /* 技能标签 */
 .skill-tags {
     display: flex;
@@ -1264,6 +1256,26 @@
   &.future {
     background: #f9fafb;
     color: #d1d5db;
+    border: 1.5px dashed #e5e7eb;
+    border-radius: 20px;
+  }
+  
+  &.scheduled {
+    background: #e0e7ff;
+    color: #4f46e5;
+  }
+  
+  &.scheduled::after {
+    content: '班';
+    position: absolute;
+    bottom: 1px;
+    right: 2px;
+    font-size: 8px;
+  }
+  
+  &.early-leave {
+    background: #fed7aa;
+    color: #ea580c;
   }
   
   &.other-month {
@@ -1314,6 +1326,16 @@
   &.future {
     background: #f9fafb;
     color: #d1d5db;
+  }
+  
+  &.scheduled {
+    background: #e0e7ff;
+    color: #4f46e5;
+  }
+  
+  &.early-leave {
+    background: #fed7aa;
+    color: #ea580c;
   }
 }
 

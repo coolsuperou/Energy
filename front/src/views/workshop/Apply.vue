@@ -53,14 +53,16 @@
               <label>设备名称 <span class="required">*</span></label>
               <select v-model="form.equipmentId" class="form-select" @change="onEquipmentChange">
                 <option value="">请选择设备</option>
-                <option v-for="eq in equipments" :key="eq.id" :value="eq.id">
-                  {{ eq.name }} (额定功率: {{ eq.ratedPower }}kW)
+                <option v-for="eq in equipments" :key="eq.id" :value="eq.id"
+                        :disabled="eq.status === 'fault'"
+                        :style="eq.status === 'fault' ? 'color: #ef4444; background: #fef2f2' : eq.status === 'warning' ? 'color: #f59e0b' : ''">
+                  {{ eq.name }} (额定功率: {{ eq.ratedPower }}kW){{ eq.status === 'fault' ? ' 🔧 报修中' : eq.status === 'warning' ? ' ⚠️ 异常' : '' }}
                 </option>
               </select>
             </div>
             <div class="form-group">
               <label>申请功率 (kW) <span class="required">*</span></label>
-              <input v-model.number="form.power" type="number" class="form-input" placeholder="请输入申请功率" min="1" max="200" @input="calculateCost">
+              <input v-model.number="form.power" type="number" class="form-input" placeholder="请输入申请功率" min="0.1" step="0.1" max="200" @input="calculateCost">
               <div class="form-hint">当前车间最大可用功率: <strong>200 kW</strong></div>
             </div>
           </div>
@@ -195,6 +197,37 @@
         </table>
       </div>
     </div>
+
+    <!-- 申请详情对话框 -->
+    <el-dialog v-model="detailDialog.visible" title="申请详情" width="600px" destroy-on-close>
+      <div v-if="detailDialog.data" class="detail-content">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="申请编号">{{ detailDialog.data.applicationNo }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <span :class="['badge', getBadgeClass(detailDialog.data.status)]">{{ getStatusText(detailDialog.data.status) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="设备名称">{{ detailDialog.data.equipmentName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="申请功率">{{ detailDialog.data.power }} kW</el-descriptions-item>
+          <el-descriptions-item label="申请日期">{{ detailDialog.data.applyDate }}</el-descriptions-item>
+          <el-descriptions-item label="用电时段">{{ formatTime(detailDialog.data.startTime) }} - {{ formatTime(detailDialog.data.endTime) }}</el-descriptions-item>
+          <el-descriptions-item label="紧急程度">{{ getUrgencyText(detailDialog.data.urgency) }}</el-descriptions-item>
+          <el-descriptions-item label="预估费用">¥{{ calculateEstCost(detailDialog.data) }}</el-descriptions-item>
+          <el-descriptions-item label="用途说明" :span="2">{{ detailDialog.data.purpose || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="审批意见" :span="2">
+            <span :class="getCommentClass(detailDialog.data.status)">{{ detailDialog.data.comment || '-' }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 评论交流组件 -->
+        <CommentSection 
+          related-type="application" 
+          :related-id="detailDialog.data.id" 
+        />
+      </div>
+      <template #footer>
+        <el-button @click="detailDialog.visible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -202,7 +235,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getEquipments } from '@/api/equipment'
-import { submitApplication, getMyApplications } from '@/api/application'
+import { submitApplication, getMyApplications, cancelApplication as cancelApplicationApi } from '@/api/application'
+import CommentSection from '@/components/CommentSection.vue'
 
 const activeTab = ref('new')
 const statusFilter = ref('')
@@ -217,9 +251,9 @@ const stats = ref({ total: 0, approved: 0, pending: 0, rejected: 0 })
 const form = ref({
   equipmentId: '',
   power: '',
-  applyDate: '',
-  startTime: '08:00',
-  endTime: '12:00',
+  applyDate: new Date().toISOString().split('T')[0],
+  startTime: (() => { const n = new Date(); return String(n.getHours()).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0') })(),
+  endTime: (() => { const n = new Date(); return String(Math.min(n.getHours() + 4, 23)).padStart(2, '0') + ':' + String(n.getMinutes()).padStart(2, '0') })(),
   urgency: 'NORMAL',
   purpose: ''
 })
@@ -308,7 +342,12 @@ function isRejected(status) {
 function formatDateTime(date, startTime, endTime) {
   if (!date) return '-'
   const d = date.substring(5) // 去掉年份，只保留 MM-DD
-  return `${d} ${startTime}-${endTime}`
+  return `${d} ${formatTime(startTime)}-${formatTime(endTime)}`
+}
+
+function formatTime(time) {
+  if (!time) return ''
+  return time.substring(0, 5)
 }
 
 function getUrgencyClass(urgency) {
@@ -322,7 +361,12 @@ function getUrgencyText(urgency) {
 async function loadEquipments() {
   try {
     const res = await getEquipments()
-    if (res.code === 200) equipments.value = res.data || []
+    if (res.code === 200) {
+      equipments.value = (res.data || []).map(eq => ({
+        ...eq,
+        status: (eq.status || '').toLowerCase()
+      }))
+    }
   } catch (e) { console.error('加载设备失败', e) }
 }
 
@@ -366,21 +410,45 @@ async function submitApply() {
 }
 
 function resetForm() {
-  form.value = { equipmentId: '', power: '', applyDate: '', startTime: '08:00', endTime: '12:00', urgency: 'NORMAL', purpose: '' }
+  const now = new Date()
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  const endHour = String(Math.min(now.getHours() + 4, 23)).padStart(2, '0')
+  form.value = {
+    equipmentId: '', power: '',
+    applyDate: now.toISOString().split('T')[0],
+    startTime: hh + ':' + mm,
+    endTime: endHour + ':' + mm,
+    urgency: 'NORMAL', purpose: ''
+  }
   selectedSlot.value = ''
   estEnergy.value = 0
   estCost.value = 0
 }
 
 function cancelApplication(id) {
-  ElMessageBox.confirm('确定要撤回此申请吗？', '提示', { type: 'warning' }).then(() => {
-    ElMessage.success('撤回成功')
-    loadApplications()
+  ElMessageBox.confirm('确定要撤回此申请吗？', '提示', { type: 'warning' }).then(async () => {
+    try {
+      const res = await cancelApplicationApi(id)
+      if (res.code === 200) {
+        ElMessage.success('撤回成功')
+        loadApplications()
+      }
+    } catch (e) { /* handled by interceptor */ }
   }).catch(() => {})
 }
 
+// 详情对话框
+const detailDialog = ref({
+  visible: false,
+  data: null
+})
+
 function viewDetail(item) {
-  ElMessageBox.alert(`申请编号: ${item.applicationNo}\n用途: ${item.purpose || '-'}\n审批意见: ${item.comment || '-'}`, '申请详情')
+  detailDialog.value = {
+    visible: true,
+    data: item
+  }
 }
 
 function calculateEstCost(item) {
@@ -413,7 +481,12 @@ function reapply(item) {
 }
 
 onMounted(() => {
-  form.value.applyDate = new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  const now = new Date()
+  const hh = String(now.getHours()).padStart(2, '0')
+  const mm = String(now.getMinutes()).padStart(2, '0')
+  form.value.applyDate = now.toISOString().split('T')[0]
+  form.value.startTime = hh + ':' + mm
+  form.value.endTime = String(Math.min(now.getHours() + 4, 23)).padStart(2, '0') + ':' + mm
   loadEquipments()
   loadApplications()
 })

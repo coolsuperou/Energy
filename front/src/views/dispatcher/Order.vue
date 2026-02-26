@@ -162,6 +162,35 @@
         <el-button type="primary" @click="confirmAssign">确认派单</el-button>
       </template>
     </el-dialog>
+
+    <!-- 工单详情对话框 -->
+    <el-dialog v-model="detailDialog.visible" title="工单详情" width="650px" destroy-on-close>
+      <div v-if="detailDialog.order" class="detail-content">
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="工单号">{{ detailDialog.order.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <span :class="['status-badge', 'status-' + detailDialog.order.status]">{{ getStatusText(detailDialog.order.status) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="工单类型">
+            <el-tag :type="getTypeTagType(detailDialog.order.type)" size="small">{{ getTypeText(detailDialog.order.type) }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="处理人">{{ detailDialog.order.assignee || '未分配' }}</el-descriptions-item>
+          <el-descriptions-item label="位置" :span="2">{{ detailDialog.order.location || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="描述" :span="2">{{ detailDialog.order.description || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间" :span="2">{{ detailDialog.order.createdAt }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 评论交流组件 -->
+        <CommentSection 
+          related-type="task" 
+          :related-id="detailDialog.order.id" 
+        />
+      </div>
+      <template #footer>
+        <el-button @click="detailDialog.visible = false">关闭</el-button>
+        <el-button v-if="detailDialog.order?.status === 'pending'" type="primary" @click="assignFromDetail">派单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -170,6 +199,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getTasks, createTask, assignTask } from '@/api/task'
 import { getUsers } from '@/api/user'
+import CommentSection from '@/components/CommentSection.vue'
 
 // 统计数据
 const stats = ref({
@@ -262,7 +292,7 @@ async function loadOrders() {
         id: task.id,
         orderNo: `WO${task.id.toString().padStart(10, '0')}`,
         type: (task.taskType || '').toLowerCase(),
-        location: task.description || '',
+        location: task.equipmentName || '-',
         description: task.title || '',
         assignee: task.assigneeName || '',
         status: (task.status || '').toLowerCase(),
@@ -389,21 +419,26 @@ async function confirmAssign() {
   }
 }
 
+// 详情对话框
+const detailDialog = ref({
+  visible: false,
+  order: null
+})
+
 // 查看工单
 function viewOrder(order) {
-  ElMessageBox.alert(
-    `<div style="line-height: 1.8">
-      <p><strong>工单号：</strong>${order.orderNo}</p>
-      <p><strong>类型：</strong>${getTypeText(order.type)}</p>
-      <p><strong>位置：</strong>${order.location}</p>
-      <p><strong>描述：</strong>${order.description}</p>
-      <p><strong>处理人：</strong>${order.assignee || '未分配'}</p>
-      <p><strong>状态：</strong>${getStatusText(order.status)}</p>
-      <p><strong>创建时间：</strong>${order.createdAt}</p>
-    </div>`,
-    '工单详情',
-    { dangerouslyUseHTMLString: true }
-  )
+  detailDialog.value = {
+    visible: true,
+    order
+  }
+}
+
+// 从详情页派单
+function assignFromDetail() {
+  if (detailDialog.value.order) {
+    detailDialog.value.visible = false
+    assignOrder(detailDialog.value.order)
+  }
 }
 
 onMounted(() => {

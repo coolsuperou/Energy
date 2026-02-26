@@ -31,15 +31,12 @@
             <i class="bi bi-bell"></i>
             <span v-if="unreadCount > 0" class="notify-badge">{{ unreadCount }}</span>
           </button>
-          <div class="user-dropdown" @click="showDropdown = !showDropdown">
-            <div class="user-avatar">{{ userStore.user?.name?.charAt(0) || 'U' }}</div>
-            <span class="user-name">{{ userStore.user?.name }} · {{ userStore.user?.department }}</span>
-            <i class="bi bi-chevron-down"></i>
-            <div v-show="showDropdown" class="dropdown-menu">
-              <a class="dropdown-item" @click="handleLogout">
-                <i class="bi bi-box-arrow-left"></i>退出登录
-              </a>
+          <div class="user-dropdown" @click="goToProfile">
+            <div class="user-avatar">
+              <img v-if="userStore.user?.avatarUrl" :src="userStore.user.avatarUrl" alt="头像" />
+              <span v-else>{{ userStore.user?.name?.charAt(0) || 'U' }}</span>
             </div>
+            <span class="user-name">{{ userStore.user?.name }} · {{ userStore.user?.department }}</span>
           </div>
         </div>
       </header>
@@ -66,12 +63,29 @@ const props = defineProps({
 const router = useRouter()
 const userStore = useUserStore()
 const isCollapse = ref(false)
-const showDropdown = ref(false)
 const unreadCount = ref(0)
 
 function handleLogout() {
   userStore.doLogout()
   router.push('/login')
+}
+
+// 跳转到个人中心
+function goToProfile() {
+  const role = userStore.user?.role
+  let roleValue = typeof role === 'string' ? role : role?.value
+  if (roleValue) roleValue = roleValue.toLowerCase()
+  
+  const profileRoutes = {
+    'admin': '/admin/profile',
+    'dispatcher': '/dispatcher/profile',
+    'inspector': '/inspector/profile',
+    'manager': '/manager/profile',
+    'workshop': '/workshop/profile'
+  }
+  
+  const route = profileRoutes[roleValue] || '/inspector/profile'
+  router.push(route)
 }
 
 // 获取未读消息数量
@@ -86,17 +100,11 @@ async function fetchUnreadCount() {
   }
 }
 
-// 点击外部关闭下拉菜单
-function handleClickOutside(e) {
-  if (!e.target.closest('.user-dropdown')) {
-    showDropdown.value = false
-  }
-}
+// 点击外部关闭下拉菜单已删除
 
 let pollTimer = null
 
 onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
   // 初始获取未读数量
   fetchUnreadCount()
   // 每30秒轮询一次
@@ -104,7 +112,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
@@ -310,37 +317,22 @@ onUnmounted(() => {
     align-items: center;
     justify-content: center;
     font-weight: 600;
+    overflow: hidden;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    span {
+      font-size: 14px;
+    }
   }
   
   .user-name {
     color: #1e293b;
     font-size: 14px;
-  }
-  
-  i { color: #64748b; font-size: 12px; }
-  
-  .dropdown-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 8px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    min-width: 160px;
-    overflow: hidden;
-    
-    .dropdown-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      color: #475569;
-      text-decoration: none;
-      
-      &:hover { background: #f1f5f9; }
-      i { font-size: 16px; }
-    }
   }
 }
 

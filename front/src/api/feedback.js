@@ -29,3 +29,22 @@ export function withdrawFeedback(id) {
 export function handleFeedback(id, data) {
   return request.post(`/feedback/${id}/handle`, data)
 }
+
+// 上传反馈图片（支持多图）
+export function uploadFeedbackImages(feedbackId, files) {
+  const formData = new FormData()
+  files.forEach(file => {
+    formData.append('files', file)
+  })
+  return request.post(`/feedback/${feedbackId}/images`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    timeout: 60000 // 上传文件超时时间设为60秒
+  })
+}
+
+// 获取反馈图片列表
+export function getFeedbackImages(feedbackId) {
+  return request.get(`/feedback/${feedbackId}/images`)
+}

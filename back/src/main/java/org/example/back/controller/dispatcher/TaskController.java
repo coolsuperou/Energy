@@ -146,21 +146,6 @@ public class TaskController {
     }
 
     /**
-     * 接单
-     * 巡检员接受分派的任务
-     */
-    @PostMapping("/{id}/accept")
-    public Result<Void> acceptTask(@PathVariable Long id, HttpSession session) {
-        User user = (User) session.getAttribute("user");
-        if (user == null) {
-            return Result.error(401, "请先登录");
-        }
-
-        taskService.acceptTask(id, user.getId());
-        return Result.success(null);
-    }
-
-    /**
      * 获取我的任务统计
      * 巡检员工作台统计数据
      */

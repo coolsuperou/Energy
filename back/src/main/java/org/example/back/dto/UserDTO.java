@@ -21,6 +21,7 @@ public class UserDTO {
     private UserStatus status;
     private String employeeId;
     private String joinDate;
+    private String avatarUrl;
     private LocalDateTime createdAt;
 
     public Long getId() { return id; }
@@ -47,6 +48,8 @@ public class UserDTO {
     public void setEmployeeId(String employeeId) { this.employeeId = employeeId; }
     public String getJoinDate() { return joinDate; }
     public void setJoinDate(String joinDate) { this.joinDate = joinDate; }
+    public String getAvatarUrl() { return avatarUrl; }
+    public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
     public static UserDTO fromEntity(User user) {
         if (user == null) return null;
@@ -63,6 +66,8 @@ public class UserDTO {
         dto.setEmployeeId(generateEmployeeId(user));
         dto.setJoinDate(formatJoinDate(user.getCreatedAt()));
         dto.setCreatedAt(user.getCreatedAt());
+        // 头像URL - 暂时保持相对路径,由Service层转换
+        dto.setAvatarUrl(user.getAvatarUrl());
         return dto;
     }
 

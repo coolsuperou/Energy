@@ -92,28 +92,72 @@ CREATE TABLE IF NOT EXISTS energy_data (
     INDEX idx_period_type (period_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='能耗数据表';
 
--- 5. 巡检任务表 (tasks)
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	问题反馈表（移到 tasks 之前，因为 tasks 外键引用 feedbacks）
+-- =============================================
+-- 5. 问题反馈表 (feedbacks)
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '反馈ID',
+    feedback_no VARCHAR(20) NOT NULL UNIQUE COMMENT '反馈编号',
+    user_id BIGINT NOT NULL COMMENT '提交用户ID',
+    type ENUM('fault', 'suggestion', 'question', 'other') NOT NULL COMMENT '反馈类型',
+    location VARCHAR(100) COMMENT '相关位置',
+    equipment_id BIGINT COMMENT '关联设备ID',
+    urgency ENUM('normal', 'urgent', 'critical') DEFAULT 'normal' COMMENT '紧急程度',
+    description TEXT NOT NULL COMMENT '问题描述',
+    status ENUM('pending', 'processing', 'resolved', 'withdrawn') DEFAULT 'pending' COMMENT '状态',
+    reply TEXT COMMENT '处理回复',
+    images VARCHAR(2000) COMMENT '反馈图片URL，多个逗号分隔',
+    handled_by BIGINT COMMENT '处理人ID',
+    handled_at DATETIME COMMENT '处理时间',
+    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_feedback_no (feedback_no),
+    INDEX idx_user (user_id),
+    INDEX idx_status (status),
+    INDEX idx_type (type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='问题反馈表';
+
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	巡检任务表 - 任务状态只有 pending/in_progress/completed 三种
+-- =============================================
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	巡检任务表，支持关联反馈ID便于追溯
+-- =============================================
+-- 6. 巡检任务表 (tasks)
 CREATE TABLE IF NOT EXISTS tasks (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '任务ID',
     task_type ENUM('inspection', 'repair', 'maintenance') NOT NULL COMMENT '任务类型',
     title VARCHAR(200) NOT NULL COMMENT '任务标题',
     description TEXT COMMENT '任务描述',
     equipment_id BIGINT COMMENT '关联设备ID',
+    feedback_id BIGINT COMMENT '关联反馈ID（反馈转工单时使用）',
     assigned_to BIGINT COMMENT '分配给（巡检员ID）',
     assigned_by BIGINT NOT NULL COMMENT '分配人（调度员ID）',
     priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal' COMMENT '优先级',
-    status ENUM('pending', 'assigned', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态',
+    status ENUM('pending', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态：待进行/进行中/已完成',
     due_date DATE COMMENT '截止日期',
     completed_at DATETIME COMMENT '完成时间',
     report TEXT COMMENT '完成报告',
+    report_images VARCHAR(2000) COMMENT '完成工单图片URL，多个逗号分隔',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (equipment_id) REFERENCES equipments(id) ON DELETE SET NULL,
+    FOREIGN KEY (feedback_id) REFERENCES feedbacks(id) ON DELETE SET NULL,
     INDEX idx_assigned_to (assigned_to),
     INDEX idx_status (status),
     INDEX idx_priority (priority),
-    INDEX idx_due_date (due_date)
+    INDEX idx_due_date (due_date),
+    INDEX idx_feedback_id (feedback_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='巡检任务表';
 
 -- 6. 消息通知表 (notifications)
@@ -158,30 +202,7 @@ CREATE TABLE IF NOT EXISTS comments (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表';
 
--- 9. 问题反馈表 (feedbacks)
-CREATE TABLE IF NOT EXISTS feedbacks (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '反馈ID',
-    feedback_no VARCHAR(20) NOT NULL UNIQUE COMMENT '反馈编号',
-    user_id BIGINT NOT NULL COMMENT '提交用户ID',
-    type ENUM('fault', 'suggestion', 'question', 'other') NOT NULL COMMENT '反馈类型',
-    location VARCHAR(100) COMMENT '相关位置',
-    urgency ENUM('normal', 'urgent', 'critical') DEFAULT 'normal' COMMENT '紧急程度',
-    description TEXT NOT NULL COMMENT '问题描述',
-    status ENUM('pending', 'processing', 'resolved', 'withdrawn') DEFAULT 'pending' COMMENT '状态',
-    reply TEXT COMMENT '处理回复',
-    handled_by BIGINT COMMENT '处理人ID',
-    handled_at DATETIME COMMENT '处理时间',
-    create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_feedback_no (feedback_no),
-    INDEX idx_user (user_id),
-    INDEX idx_status (status),
-    INDEX idx_type (type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='问题反馈表';
-
--- 10. 操作日志表 (operation_logs)
+-- 9. 操作日志表 (operation_logs)
 CREATE TABLE IF NOT EXISTS operation_logs (
     id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '日志ID',
     user_id BIGINT NOT NULL COMMENT '操作人ID',
@@ -226,15 +247,72 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 
 USE electric_energy_platform;
 
--- 修改 assigned_to 字段允许 NULL
-ALTER TABLE tasks MODIFY COLUMN assigned_to BIGINT COMMENT '分配给（巡检员ID）';
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	技能认证表 - 存储巡检员的技能认证申请和状态
+-- =============================================
+-- 13. 技能认证表 (skill_certifications)
+CREATE TABLE IF NOT EXISTS skill_certifications (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '认证ID',
+    user_id BIGINT NOT NULL COMMENT '申请人ID（巡检员）',
+    skill_name VARCHAR(100) NOT NULL COMMENT '技能名称',
+    certificate_url VARCHAR(255) COMMENT '证书文件URL（MinIO路径）',
+    status ENUM('pending', 'certified', 'rejected') DEFAULT 'pending' COMMENT '认证状态：待审核/已认证/已拒绝',
+    reject_reason VARCHAR(500) COMMENT '拒绝原因',
+    reviewed_by BIGINT COMMENT '审核人ID（经理）',
+    reviewed_at DATETIME COMMENT '审核时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_user_id (user_id),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='技能认证表';
 
--- 修改 status 枚举，添加 assigned 状态
-ALTER TABLE tasks MODIFY COLUMN status ENUM('pending', 'assigned', 'in_progress', 'completed') DEFAULT 'pending' COMMENT '任务状态';
 
--- 修改 priority 枚举，添加 urgent，将 medium 改为 normal
-ALTER TABLE tasks MODIFY COLUMN priority ENUM('low', 'normal', 'high', 'urgent') DEFAULT 'normal' COMMENT '优先级';
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	巡检计划表 - 按周为巡检员分配车间的排班记录
+-- =============================================
+-- 14. 巡检计划表 (inspection_plans)
+CREATE TABLE IF NOT EXISTS inspection_plans (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '计划ID',
+    inspector_id BIGINT NOT NULL COMMENT '巡检员用户ID',
+    workshop_id BIGINT NOT NULL COMMENT '车间ID（对应 equipments.workshop_id）',
+    week_start DATE NOT NULL COMMENT '周起始日期（周一）',
+    status ENUM('pending', 'completed') DEFAULT 'pending' COMMENT '计划状态',
+    remark VARCHAR(200) COMMENT '备注（如：该车间暂无设备）',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    FOREIGN KEY (inspector_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_inspector_workshop_week (inspector_id, workshop_id, week_start),
+    INDEX idx_week_start (week_start),
+    INDEX idx_inspector (inspector_id),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='巡检计划表';
 
--- 修改外键约束
-ALTER TABLE tasks DROP FOREIGN KEY tasks_ibfk_1;
-ALTER TABLE tasks ADD CONSTRAINT tasks_ibfk_1 FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2024
+-- Description:	巡检记录表 - 每台设备每个检查项的检查结果明细
+-- =============================================
+-- 15. 巡检记录表 (inspection_records)
+CREATE TABLE IF NOT EXISTS inspection_records (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '记录ID',
+    plan_id BIGINT NOT NULL COMMENT '关联巡检计划ID',
+    equipment_id BIGINT NOT NULL COMMENT '设备ID',
+    check_type ENUM('appearance', 'running', 'temperature', 'noise', 'electrical') NOT NULL COMMENT '检查类型',
+    result ENUM('normal', 'abnormal', 'fault') DEFAULT NULL COMMENT '检查结果',
+    remark VARCHAR(500) COMMENT '备注',
+    repaired TINYINT(1) DEFAULT 0 COMMENT '是否已转报修',
+    checked_at DATETIME COMMENT '检查时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    FOREIGN KEY (plan_id) REFERENCES inspection_plans(id) ON DELETE CASCADE,
+    FOREIGN KEY (equipment_id) REFERENCES equipments(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_plan_equipment_check (plan_id, equipment_id, check_type),
+    INDEX idx_plan (plan_id),
+    INDEX idx_equipment (equipment_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='巡检记录表';

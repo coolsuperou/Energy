@@ -11,7 +11,8 @@ import org.example.back.entity.enums.UserRole;
 import org.example.back.entity.enums.UserStatus;
 import org.example.back.exception.BusinessException;
 import org.example.back.exception.ErrorCode;
-import org.example.back.mapper.UserMapper;
+import org.example.back.mapper.common.UserMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class UserService extends ServiceImpl<UserMapper, User> {
+
+    @Autowired
+    private MinioService minioService;
 
     public LoginResponse login(LoginRequest request) {
         User user = this.getOne(new LambdaQueryWrapper<User>()
@@ -81,7 +85,12 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
-        return UserDTO.fromEntity(user);
+        UserDTO dto = UserDTO.fromEntity(user);
+        // 转换头像URL为完整地址
+        if (dto.getAvatarUrl() != null && !dto.getAvatarUrl().isEmpty()) {
+            dto.setAvatarUrl(minioService.getFileUrl(dto.getAvatarUrl()));
+        }
+        return dto;
     }
 
     public User getUserEntityById(Long userId) {
@@ -142,9 +151,16 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         // 按姓名排序
         wrapper.orderByAsc(User::getName);
         
-        List<User> users = this.list(wrapper);  //调用mapper查询数据库  得到List用户列表
+        List<User> users = this.list(wrapper);
         return users.stream()
-                .map(UserDTO::fromEntity)
+                .map(user -> {
+                    UserDTO dto = UserDTO.fromEntity(user);
+                    // 转换头像URL为完整地址
+                    if (dto.getAvatarUrl() != null && !dto.getAvatarUrl().isEmpty()) {
+                        dto.setAvatarUrl(minioService.getFileUrl(dto.getAvatarUrl()));
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 }

@@ -25,8 +25,8 @@ spring:
   # 文件上传配置
   servlet:
     multipart:
-      max-file-size: 2MB
-      max-request-size: 2MB
+      max-file-size: 15MB
+      max-request-size: 15MB
 
 # MyBatis-Plus 配置
 mybatis-plus:
@@ -48,6 +48,15 @@ minio:
   access-key: minioadmin
   secret-key: minioadmin
   bucket-name: avatars
+
+# 讯飞星火大模型配置
+ai:
+  spark:
+    app-id: ab3cd651
+    api-key: c5f832a4b473cdcde7688cee1b7cb248
+    api-secret: OGIyMTNiMmRmZmYzM2M4MjJjNjE2ZWIx
+    host-url: wss://spark-api.xf-yun.com/v1/x1
+    domain: spark-x
 
 # 日志配置
 logging:

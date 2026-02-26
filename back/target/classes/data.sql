@@ -5,6 +5,8 @@ USE electric_energy_platform;
 
 -- 清空现有数据（开发测试用）
 SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE skill_certifications;
+TRUNCATE TABLE feedback_images;
 TRUNCATE TABLE attendance_records;
 TRUNCATE TABLE operation_logs;
 TRUNCATE TABLE comments;
@@ -14,8 +16,8 @@ TRUNCATE TABLE tasks;
 TRUNCATE TABLE energy_data;
 TRUNCATE TABLE applications;
 TRUNCATE TABLE equipments;
-TRUNCATE TABLE users;
 TRUNCATE TABLE feedbacks;
+TRUNCATE TABLE users;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================
@@ -136,12 +138,12 @@ INSERT INTO tasks (task_type, title, description, equipment_id, assigned_to, ass
 ('inspection', '冲压机-01 定期检查', '检查液压系统、安全防护装置、噪音情况', 5, NULL, 2, 'normal', 'pending', DATE_ADD(CURDATE(), INTERVAL 1 DAY), NULL, NULL),
 ('maintenance', '磨床-01 保养维护', '更换润滑油、清洁冷却系统、检查精度', 9, NULL, 2, 'low', 'pending', DATE_ADD(CURDATE(), INTERVAL 2 DAY), NULL, NULL),
 
--- 已分派待接单任务（assigned - 已分派给巡检员但未开始）
-('inspection', '激光切割机-01 日常巡检', '检查激光头、冷却系统、气路系统、镜片清洁度', 3, 4, 2, 'normal', 'assigned', CURDATE(), NULL, NULL),
-('repair', '数控机床-04 故障维修', '设备显示警告状态，主轴温度过高，需紧急处理', 7, 4, 2, 'urgent', 'assigned', CURDATE(), NULL, NULL),
-('inspection', '焊接机器人-01 安全检查', '检查焊接臂运动轨迹、气体保护系统、电气安全', 4, 5, 2, 'normal', 'assigned', CURDATE(), NULL, NULL),
-('maintenance', '激光切割机-02 预防性维护', '更换冷却液、清洁光路系统、校准切割精度', 8, 5, 2, 'high', 'assigned', CURDATE(), NULL, NULL),
-('inspection', '钻床-01 日常巡检', '检查主轴跳动、夹具磨损、切削液状态', 10, 6, 2, 'normal', 'assigned', DATE_ADD(CURDATE(), INTERVAL 1 DAY), NULL, NULL),
+-- 已分派任务（in_progress - 已分派给巡检员）
+('inspection', '激光切割机-01 日常巡检', '检查激光头、冷却系统、气路系统、镜片清洁度', 3, 4, 2, 'normal', 'in_progress', CURDATE(), NULL, NULL),
+('repair', '数控机床-04 故障维修', '设备显示警告状态，主轴温度过高，需紧急处理', 7, 4, 2, 'urgent', 'in_progress', CURDATE(), NULL, NULL),
+('inspection', '焊接机器人-01 安全检查', '检查焊接臂运动轨迹、气体保护系统、电气安全', 4, 5, 2, 'normal', 'in_progress', CURDATE(), NULL, NULL),
+('maintenance', '激光切割机-02 预防性维护', '更换冷却液、清洁光路系统、校准切割精度', 8, 5, 2, 'high', 'in_progress', CURDATE(), NULL, NULL),
+('inspection', '钻床-01 日常巡检', '检查主轴跳动、夹具磨损、切削液状态', 10, 6, 2, 'normal', 'in_progress', DATE_ADD(CURDATE(), INTERVAL 1 DAY), NULL, NULL),
 
 -- 进行中任务（in_progress - 巡检员已接单正在处理）
 ('maintenance', '数控机床-02 预防性维护', '更换导轨润滑油、检查伺服电机、校准刀具补偿', 2, 4, 2, 'high', 'in_progress', CURDATE(), NULL, NULL),
@@ -422,3 +424,253 @@ INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_
 (5, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'rest', NULL, NULL, 'rest', '休息日'),
 (5, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划'),
 (5, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'night', '20:00:00', '05:00:00', 'normal', '排班计划');
+
+-- =============================================
+-- Author:	每天十点睡
+-- Create date: 2026-02-15
+-- Description:	补充所有角色的考勤数据
+-- =============================================
+
+-- 张管理 admin (user_id=1) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(1, CURDATE(), 'day', '09:00:00', '18:00:00', '08:50:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(1, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '09:00:00', '18:00:00', '08:55:00', '18:10:00', 'normal', 9.25, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '09:00:00', '18:00:00', '08:58:00', '18:05:00', 'normal', 9.12, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '09:00:00', '18:00:00', '09:00:00', '18:00:00', 'normal', 9.00, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '09:00:00', '18:00:00', '08:48:00', '18:15:00', 'normal', 9.45, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(1, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(1, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '09:00:00', '18:00:00', '08:52:00', '18:08:00', 'normal', 9.27, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '09:00:00', '18:00:00', '08:56:00', '18:02:00', 'normal', 9.10, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '09:00:00', '18:00:00', '09:05:00', '18:00:00', 'normal', 8.92, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '09:00:00', '18:00:00', '08:50:00', '18:12:00', 'normal', 9.37, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '09:00:00', '18:00:00', '08:55:00', '18:00:00', 'normal', 9.08, '正常出勤'),
+(1, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(1, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(1, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '09:00:00', '18:00:00', '08:53:00', '18:05:00', 'normal', 9.20, '正常出勤');
+
+-- 李调度 dispatcher (user_id=2) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(2, CURDATE(), 'day', '08:30:00', '17:30:00', '08:22:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(2, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', '08:25:00', '17:35:00', 'normal', 9.17, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', '08:28:00', '17:32:00', 'normal', 9.07, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', '08:35:00', '17:28:00', 'normal', 8.88, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(2, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(2, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:30:00', '17:30:00', '08:20:00', '17:40:00', 'normal', 9.33, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:30:00', '17:30:00', '08:26:00', '17:30:00', 'normal', 9.07, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:30:00', '17:30:00', '08:40:00', '17:30:00', 'late', 8.83, '迟到'),
+(2, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:30:00', '17:30:00', '08:25:00', '17:35:00', 'normal', 9.17, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(2, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(2, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(2, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:30:00', '17:30:00', '08:28:00', '17:32:00', 'normal', 9.07, '正常出勤');
+
+-- 王调度 dispatcher (user_id=3) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(3, CURDATE(), 'day', '08:30:00', '17:30:00', '08:28:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(3, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', '08:25:00', '17:28:00', 'normal', 9.05, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', '08:32:00', '17:30:00', 'normal', 8.97, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', '08:45:00', '17:15:00', 'early_leave', 8.50, '早退'),
+(3, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(3, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(3, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:30:00', '17:30:00', '08:29:00', '17:31:00', 'normal', 9.03, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:30:00', '17:30:00', '08:27:00', '17:33:00', 'normal', 9.10, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:30:00', '17:30:00', '08:50:00', '17:30:00', 'late', 8.67, '迟到'),
+(3, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:30:00', '17:30:00', '08:26:00', '17:35:00', 'normal', 9.15, '正常出勤'),
+(3, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(3, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(3, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤');
+
+-- 孙巡检 inspector (user_id=6) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(6, CURDATE(), 'day', '08:30:00', '17:30:00', '08:30:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(6, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', '08:25:00', '17:30:00', 'normal', 9.08, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', '08:28:00', '17:35:00', 'normal', 9.12, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', '08:22:00', '17:28:00', 'normal', 9.10, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(6, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(6, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:30:00', '17:30:00', '08:35:00', '17:30:00', 'normal', 8.92, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:30:00', '17:30:00', NULL, NULL, 'absent', 0, '请假'),
+(6, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:30:00', '17:30:00', '08:26:00', '17:32:00', 'normal', 9.10, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:30:00', '17:30:00', '08:30:00', '17:30:00', 'normal', 9.00, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:30:00', '17:30:00', '08:29:00', '17:31:00', 'normal', 9.03, '正常出勤'),
+(6, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(6, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(6, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:30:00', '17:30:00', '08:27:00', '17:33:00', 'normal', 9.10, '正常出勤');
+
+-- 周经理 manager (user_id=7) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(7, CURDATE(), 'day', '09:00:00', '18:00:00', '08:45:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(7, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '09:00:00', '18:00:00', '08:50:00', '18:20:00', 'normal', 9.50, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '09:00:00', '18:00:00', '08:55:00', '18:10:00', 'normal', 9.25, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '09:00:00', '18:00:00', '09:00:00', '18:00:00', 'normal', 9.00, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '09:00:00', '18:00:00', '08:48:00', '18:30:00', 'normal', 9.70, '加班'),
+(7, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(7, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(7, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '09:00:00', '18:00:00', '08:52:00', '18:15:00', 'normal', 9.38, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '09:00:00', '18:00:00', '08:58:00', '18:05:00', 'normal', 9.12, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '09:00:00', '18:00:00', '09:10:00', '18:00:00', 'late', 8.83, '迟到'),
+(7, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '09:00:00', '18:00:00', '08:50:00', '18:08:00', 'normal', 9.30, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '09:00:00', '18:00:00', '08:55:00', '18:00:00', 'normal', 9.08, '正常出勤'),
+(7, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(7, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(7, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '09:00:00', '18:00:00', '08:53:00', '18:10:00', 'normal', 9.28, '正常出勤');
+
+-- 吴车间 workshop (user_id=8) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(8, CURDATE(), 'day', '08:00:00', '17:00:00', '07:55:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(8, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:05:00', 'normal', 9.12, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '17:00:00', 'normal', 9.00, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', '08:15:00', '17:00:00', 'late', 8.75, '迟到'),
+(8, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', '07:50:00', '17:02:00', 'normal', 9.20, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(8, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(8, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:00:00', '17:00:00', '07:56:00', '17:00:00', 'normal', 9.07, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:05:00', 'normal', 9.12, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '16:45:00', 'early_leave', 8.75, '早退'),
+(8, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:00:00', '17:00:00', '07:52:00', '17:03:00', 'normal', 9.18, '正常出勤'),
+(8, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(8, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(8, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:00:00', 'normal', 9.03, '正常出勤');
+
+-- 郑车间 workshop (user_id=9) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(9, CURDATE(), 'day', '08:00:00', '17:00:00', '07:52:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(9, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:02:00', 'normal', 9.12, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '17:00:00', 'normal', 9.00, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:05:00', 'normal', 9.12, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', '07:50:00', '17:00:00', 'normal', 9.17, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(9, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(9, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:00:00', '17:00:00', '07:56:00', '17:03:00', 'normal', 9.12, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:00:00', '17:00:00', '08:20:00', '17:00:00', 'late', 8.67, '迟到'),
+(9, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:02:00', 'normal', 9.07, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '17:00:00', 'normal', 9.00, '正常出勤'),
+(9, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(9, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(9, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:00:00', '17:00:00', '07:53:00', '17:05:00', 'normal', 9.20, '正常出勤');
+
+-- 冯车间 workshop (user_id=10) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(10, CURDATE(), 'day', '08:00:00', '17:00:00', '07:48:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(10, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', '07:50:00', '17:00:00', 'normal', 9.17, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:05:00', 'normal', 9.17, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '17:00:00', 'normal', 9.00, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', '07:52:00', '17:02:00', 'normal', 9.17, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(10, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(10, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:03:00', 'normal', 9.08, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:00:00', '17:00:00', NULL, NULL, 'absent', 0, '请假'),
+(10, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:00:00', '17:00:00', '07:50:00', '17:00:00', 'normal', 9.17, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:05:00', 'normal', 9.17, '正常出勤'),
+(10, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(10, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(10, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:00:00', '17:00:00', '07:52:00', '17:00:00', 'normal', 9.13, '正常出勤');
+
+-- 陈车间 workshop (user_id=11) 考勤记录 - 白班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, clock_in_time, clock_out_time, status, work_hours, remark) VALUES
+(11, CURDATE(), 'day', '08:00:00', '17:00:00', '07:50:00', NULL, 'normal', NULL, '今日已打卡上班'),
+(11, DATE_SUB(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:02:00', 'normal', 9.07, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', '08:10:00', '17:00:00', 'late', 8.83, '迟到'),
+(11, DATE_SUB(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', '07:52:00', '17:05:00', 'normal', 9.22, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(11, DATE_SUB(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(11, DATE_SUB(CURDATE(), INTERVAL 7 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 8 DAY), 'day', '08:00:00', '17:00:00', '07:50:00', '17:03:00', 'normal', 9.22, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 9 DAY), 'day', '08:00:00', '17:00:00', '08:00:00', '16:50:00', 'early_leave', 8.83, '早退'),
+(11, DATE_SUB(CURDATE(), INTERVAL 10 DAY), 'day', '08:00:00', '17:00:00', '07:55:00', '17:00:00', 'normal', 9.08, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 11 DAY), 'day', '08:00:00', '17:00:00', '07:58:00', '17:05:00', 'normal', 9.12, '正常出勤'),
+(11, DATE_SUB(CURDATE(), INTERVAL 12 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(11, DATE_SUB(CURDATE(), INTERVAL 13 DAY), 'rest', NULL, NULL, NULL, NULL, 'rest', NULL, '周末休息'),
+(11, DATE_SUB(CURDATE(), INTERVAL 14 DAY), 'day', '08:00:00', '17:00:00', '07:52:00', '17:00:00', 'normal', 9.13, '正常出勤');
+
+-- 补充所有角色的未来排班计划
+-- 张管理 (user_id=1) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(1, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(1, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(1, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(1, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(1, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(1, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 李调度 (user_id=2) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(2, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(2, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(2, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(2, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(2, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(2, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 王调度 (user_id=3) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(3, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(3, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(3, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(3, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(3, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(3, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 孙巡检 (user_id=6) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(6, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(6, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(6, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(6, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:30:00', '17:30:00', 'normal', '排班计划'),
+(6, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(6, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 周经理 (user_id=7) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(7, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(7, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(7, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(7, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '09:00:00', '18:00:00', 'normal', '排班计划'),
+(7, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(7, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 吴车间 (user_id=8) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(8, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(8, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(8, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(8, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(8, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(8, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 郑车间 (user_id=9) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(9, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(9, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(9, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(9, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(9, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(9, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 冯车间 (user_id=10) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(10, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(10, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(10, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(10, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(10, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(10, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');
+
+-- 陈车间 (user_id=11) 未来排班
+INSERT INTO attendance_records (user_id, attendance_date, shift_type, scheduled_start_time, scheduled_end_time, status, remark) VALUES
+(11, DATE_ADD(CURDATE(), INTERVAL 1 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(11, DATE_ADD(CURDATE(), INTERVAL 2 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(11, DATE_ADD(CURDATE(), INTERVAL 3 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(11, DATE_ADD(CURDATE(), INTERVAL 4 DAY), 'day', '08:00:00', '17:00:00', 'normal', '排班计划'),
+(11, DATE_ADD(CURDATE(), INTERVAL 5 DAY), 'rest', NULL, NULL, 'rest', '周末休息'),
+(11, DATE_ADD(CURDATE(), INTERVAL 6 DAY), 'rest', NULL, NULL, 'rest', '周末休息');

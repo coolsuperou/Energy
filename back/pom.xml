@@ -66,6 +66,12 @@
             <version>8.5.7</version>
         </dependency>
         
+        <!-- OkHttp (讯飞星火 WebSocket 通信) -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+        
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

@@ -34,6 +34,9 @@ public class Task {
     /** 关联设备ID */
     private Long equipmentId;
     
+    /** 关联反馈ID（反馈转工单时使用，便于追溯） */
+    private Long feedbackId;
+    
     /** 分配给谁 巡检员用户ID */
     private Long assignedTo;
     
@@ -54,6 +57,9 @@ public class Task {
     
     /** 巡检报告内容 */
     private String report;
+    
+    /** 完成工单时上传的图片URL（多个用逗号分隔） */
+    private String reportImages;
     
     /** 创建时间 自动填充 */
     @TableField(fill = FieldFill.INSERT)

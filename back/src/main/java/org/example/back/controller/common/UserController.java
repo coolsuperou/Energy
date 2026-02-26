@@ -8,14 +8,21 @@ import org.example.back.dto.LoginResponse;
 import org.example.back.dto.RegisterRequest;
 import org.example.back.dto.UserDTO;
 import org.example.back.entity.User;
+import org.example.back.entity.SkillCertification;
+import org.example.back.entity.enums.CertificationStatus;
+import org.example.back.service.inspector.SkillService;
 import org.example.back.entity.enums.UserRole;
 import org.example.back.service.common.MinioService;
 import org.example.back.service.common.UserService;
+import org.example.back.mapper.dispatcher.TaskMapper;
+import org.example.back.entity.enums.TaskStatus;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +41,12 @@ public class UserController {
 
     @Autowired
     private MinioService minioService;
+
+    @Autowired
+    private TaskMapper taskMapper;
+
+    @Autowired
+    private SkillService skillService;
 
     /**
      * 用户登录
@@ -116,11 +129,43 @@ public class UserController {
             return Result.error("未登录");
         }
 
+        Long userId = currentUser.getId();
         Map<String, Object> stats = new HashMap<>();
-        stats.put("monthlyCompleted", 28);
-        stats.put("rating", 4.8);
-        stats.put("onTimeRate", 95);
-        stats.put("totalCompleted", 342);
+        
+        // 本月完成工单
+        LocalDate firstDayOfMonth = LocalDate.now().withDayOfMonth(1);
+        QueryWrapper<org.example.back.entity.Task> monthlyWrapper = new QueryWrapper<>();
+        monthlyWrapper.eq("assigned_to", userId);
+        monthlyWrapper.eq("status", TaskStatus.COMPLETED);
+        monthlyWrapper.ge("completed_at", firstDayOfMonth.atStartOfDay());
+        Long monthlyCompleted = taskMapper.selectCount(monthlyWrapper);
+        stats.put("monthlyCompleted", monthlyCompleted.intValue());
+        
+        // 按时完成率
+        QueryWrapper<org.example.back.entity.Task> totalMonthWrapper = new QueryWrapper<>();
+        totalMonthWrapper.eq("assigned_to", userId);
+        totalMonthWrapper.ge("created_at", firstDayOfMonth.atStartOfDay());
+        Long totalMonthTasks = taskMapper.selectCount(totalMonthWrapper);
+        
+        if (totalMonthTasks > 0) {
+            // 按时完成 = 在截止日期前完成的
+            QueryWrapper<org.example.back.entity.Task> onTimeWrapper = new QueryWrapper<>();
+            onTimeWrapper.eq("assigned_to", userId);
+            onTimeWrapper.eq("status", TaskStatus.COMPLETED);
+            onTimeWrapper.ge("completed_at", firstDayOfMonth.atStartOfDay());
+            onTimeWrapper.apply("DATE(completed_at) <= due_date");
+            Long onTimeCount = taskMapper.selectCount(onTimeWrapper);
+            stats.put("onTimeRate", Math.round(onTimeCount * 100.0 / monthlyCompleted));
+        } else {
+            stats.put("onTimeRate", 100);
+        }
+        
+        // 累计完成工单
+        QueryWrapper<org.example.back.entity.Task> totalWrapper = new QueryWrapper<>();
+        totalWrapper.eq("assigned_to", userId);
+        totalWrapper.eq("status", TaskStatus.COMPLETED);
+        Long totalCompleted = taskMapper.selectCount(totalWrapper);
+        stats.put("totalCompleted", totalCompleted.intValue());
         
         return Result.success(stats);
     }
@@ -135,36 +180,30 @@ public class UserController {
             return Result.error("未登录");
         }
 
+        List<SkillCertification> certifications = skillService.getUserSkills(currentUser.getId());
         List<Map<String, Object>> skills = new ArrayList<>();
-        
-        Map<String, Object> skill1 = new HashMap<>();
-        skill1.put("id", 1);
-        skill1.put("name", "电气设备维修");
-        skill1.put("icon", "bi-lightning-charge");
-        skill1.put("status", "certified");
-        skills.add(skill1);
-        
-        Map<String, Object> skill2 = new HashMap<>();
-        skill2.put("id", 2);
-        skill2.put("name", "机械设备检修");
-        skill2.put("icon", "bi-gear");
-        skill2.put("status", "certified");
-        skills.add(skill2);
-        
-        Map<String, Object> skill3 = new HashMap<>();
-        skill3.put("id", 3);
-        skill3.put("name", "安全操作证");
-        skill3.put("icon", "bi-shield-check");
-        skill3.put("status", "certified");
-        skills.add(skill3);
-        
-        Map<String, Object> skill4 = new HashMap<>();
-        skill4.put("id", 4);
-        skill4.put("name", "高空作业证");
-        skill4.put("icon", "bi-arrow-up-circle");
-        skill4.put("status", "pending");
-        skills.add(skill4);
-        
+
+        for (SkillCertification cert : certifications) {
+            Map<String, Object> skill = new HashMap<>();
+            skill.put("id", cert.getId());
+            skill.put("name", cert.getSkillName());
+            skill.put("status", cert.getStatus().getValue());
+            skill.put("certificateUrl", cert.getCertificateUrl());
+            skill.put("icon", "bi bi-award");
+
+            if (cert.getStatus() == CertificationStatus.CERTIFIED && cert.getReviewedAt() != null) {
+                skill.put("certifiedAt", cert.getReviewedAt().toLocalDate().toString());
+            } else {
+                skill.put("appliedAt", cert.getCreatedAt() != null ? cert.getCreatedAt().toLocalDate().toString() : null);
+            }
+
+            if (cert.getStatus() == CertificationStatus.REJECTED) {
+                skill.put("rejectReason", cert.getRejectReason());
+            }
+
+            skills.add(skill);
+        }
+
         return Result.success(skills);
     }
 
@@ -218,8 +257,8 @@ public class UserController {
         }
 
         Map<String, Object> stats = new HashMap<>();
+        Long userId = currentUser.getId();
         
-        // 近7天的工作量数据
         List<String> dates = new ArrayList<>();
         List<Integer> completed = new ArrayList<>();
         List<Integer> pending = new ArrayList<>();
@@ -228,8 +267,26 @@ public class UserController {
         for (int i = days - 1; i >= 0; i--) {
             LocalDate date = today.minusDays(i);
             dates.add(date.getMonthValue() + "/" + date.getDayOfMonth());
-            completed.add((int)(Math.random() * 5) + 2);
-            pending.add((int)(Math.random() * 3) + 1);
+            
+            LocalDateTime dayStart = date.atStartOfDay();
+            LocalDateTime dayEnd = date.plusDays(1).atStartOfDay();
+            
+            // 查询当天完成的工单数
+            QueryWrapper<org.example.back.entity.Task> completedWrapper = new QueryWrapper<>();
+            completedWrapper.eq("assigned_to", userId);
+            completedWrapper.eq("status", TaskStatus.COMPLETED);
+            completedWrapper.ge("completed_at", dayStart);
+            completedWrapper.lt("completed_at", dayEnd);
+            Long completedCount = taskMapper.selectCount(completedWrapper);
+            completed.add(completedCount.intValue());
+            
+            // 查询当天创建/分配的工单数（巡检次数）
+            QueryWrapper<org.example.back.entity.Task> createdWrapper = new QueryWrapper<>();
+            createdWrapper.eq("assigned_to", userId);
+            createdWrapper.ge("created_at", dayStart);
+            createdWrapper.lt("created_at", dayEnd);
+            Long createdCount = taskMapper.selectCount(createdWrapper);
+            pending.add(createdCount.intValue());
         }
         
         stats.put("dates", dates);
@@ -292,9 +349,9 @@ public class UserController {
             return Result.error("只能上传图片文件");
         }
 
-        // 4. 验证文件大小(最大2MB)
-        if (file.getSize() > 2 * 1024 * 1024) {
-            return Result.error("文件大小不能超过2MB");
+        // 4. 验证文件大小(最大15MB)
+        if (file.getSize() > 15 * 1024 * 1024) {
+            return Result.error("文件大小不能超过15MB");
         }
 
         try {
@@ -324,6 +381,48 @@ public class UserController {
         } catch (Exception e) {
             return Result.error("头像上传失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 修改密码
+     * 
+     * @param data 包含oldPassword和newPassword
+     * @param session HTTP会话
+     * @return 修改结果
+     */
+    @PutMapping("/current/password")
+    public Result<Void> changePassword(@RequestBody Map<String, String> data, HttpSession session) {
+        User currentUser = (User) session.getAttribute("user");
+        if (currentUser == null) {
+            return Result.error("未登录");
+        }
+
+        String oldPassword = data.get("oldPassword");
+        String newPassword = data.get("newPassword");
+
+        if (oldPassword == null || oldPassword.isEmpty()) {
+            return Result.error("请输入原密码");
+        }
+        if (newPassword == null || newPassword.isEmpty()) {
+            return Result.error("请输入新密码");
+        }
+        if (newPassword.length() < 6 || newPassword.length() > 20) {
+            return Result.error("新密码长度必须在6-20之间");
+        }
+
+        // 验证原密码（开发环境：明文比较）
+        if (!oldPassword.equals(currentUser.getPassword())) {
+            return Result.error("原密码错误");
+        }
+
+        // 更新密码
+        currentUser.setPassword(newPassword);
+        userService.updateUser(currentUser);
+
+        // 更新Session
+        session.setAttribute("user", currentUser);
+
+        return Result.success("密码修改成功", null);
     }
 
     /**

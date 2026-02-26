@@ -22,7 +22,8 @@ const routes = [
       { path: 'apply', name: 'Apply', component: () => import('@/views/workshop/Apply.vue') },
       { path: 'energy', name: 'Energy', component: () => import('@/views/workshop/Energy.vue') },
       { path: 'feedback', name: 'Feedback', component: () => import('@/views/workshop/Feedback.vue') },
-      { path: 'message', name: 'WorkshopMessage', component: () => import('@/views/common/Message.vue') }
+      { path: 'message', name: 'WorkshopMessage', component: () => import('@/views/common/Message.vue') },
+      { path: 'profile', name: 'WorkshopProfile', component: () => import('@/views/workshop/Profile.vue') }
     ]
   },
   // 能源调度员
@@ -34,10 +35,12 @@ const routes = [
       { path: '', name: 'DispatcherHome', component: () => import('@/views/dispatcher/Index.vue') },
       { path: 'approval', name: 'Approval', component: () => import('@/views/dispatcher/Approval.vue') },
       { path: 'dispatch', name: 'Dispatch', component: () => import('@/views/dispatcher/Dispatch.vue') },
-      { path: 'alert', name: 'Alert', component: () => import('@/views/dispatcher/Alert.vue') },
       { path: 'order', name: 'Order', component: () => import('@/views/dispatcher/Order.vue') },
+      { path: 'feedback', name: 'DispatcherFeedback', component: () => import('@/views/dispatcher/Feedback.vue') },
       { path: 'tasks', name: 'TaskManage', component: () => import('@/views/dispatcher/Tasks.vue') },
-      { path: 'message', name: 'DispatcherMessage', component: () => import('@/views/common/Message.vue') }
+      { path: 'inspection-schedule', name: 'InspectionSchedule', component: () => import('@/views/dispatcher/InspectionSchedule.vue') },
+      { path: 'message', name: 'DispatcherMessage', component: () => import('@/views/common/Message.vue') },
+      { path: 'profile', name: 'DispatcherProfile', component: () => import('@/views/dispatcher/Profile.vue') }
     ]
   },
   // 设备巡检员
@@ -49,6 +52,7 @@ const routes = [
       { path: '', name: 'InspectorHome', component: () => import('@/views/inspector/Index.vue') },
       { path: 'equipment', name: 'Equipment', component: () => import('@/views/inspector/Equipment.vue') },
       { path: 'inspection', name: 'Inspection', component: () => import('@/views/inspector/Inspection.vue') },
+      { path: 'weekly-inspection', name: 'WeeklyInspection', component: () => import('@/views/inspector/Inspection.vue') },
       { path: 'message', name: 'InspectorMessage', component: () => import('@/views/inspector/Message.vue') },
       { path: 'profile', name: 'Profile', component: () => import('@/views/inspector/Profile.vue') }
     ]
@@ -62,7 +66,10 @@ const routes = [
       { path: '', name: 'ManagerHome', component: () => import('@/views/manager/Index.vue') },
       { path: 'analysis', name: 'Analysis', component: () => import('@/views/manager/Analysis.vue') },
       { path: 'ai', name: 'AIAnalysis', component: () => import('@/views/manager/AI.vue') },
-      { path: 'message', name: 'ManagerMessage', component: () => import('@/views/common/Message.vue') }
+      { path: 'users', name: 'ManagerUsers', component: () => import('@/views/manager/Users.vue') },
+      { path: 'schedule', name: 'ManagerSchedule', component: () => import('@/views/manager/Schedule.vue') },
+      { path: 'message', name: 'ManagerMessage', component: () => import('@/views/manager/Message.vue') },
+      { path: 'profile', name: 'ManagerProfile', component: () => import('@/views/manager/Profile.vue') }
     ]
   },
   // 系统管理员
@@ -74,7 +81,9 @@ const routes = [
       { path: '', name: 'AdminHome', component: () => import('@/views/admin/Index.vue') },
       { path: 'users', name: 'UserManage', component: () => import('@/views/admin/Users.vue') },
       { path: 'config', name: 'SystemConfig', component: () => import('@/views/admin/Config.vue') },
-      { path: 'logs', name: 'OperationLogs', component: () => import('@/views/admin/Logs.vue') }
+      { path: 'logs', name: 'OperationLogs', component: () => import('@/views/admin/Logs.vue') },
+      { path: 'message', name: 'AdminMessage', component: () => import('@/views/admin/Message.vue') },
+      { path: 'profile', name: 'AdminProfile', component: () => import('@/views/admin/Profile.vue') }
     ]
   }
 ]
