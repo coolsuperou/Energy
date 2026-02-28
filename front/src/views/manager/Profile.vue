@@ -49,34 +49,6 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="row g-4 mb-4">
-      <div class="col-md-3">
-        <div class="stat-card text-center">
-          <div class="stat-value text-primary">{{ stats.monthlyReports }}</div>
-          <div class="stat-label">本月报告</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card text-center">
-          <div class="stat-value text-success">{{ stats.energySaved }}%</div>
-          <div class="stat-label">能源节约率</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card text-center">
-          <div class="stat-value text-warning">{{ stats.optimizations }}</div>
-          <div class="stat-label">优化建议</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card text-center">
-          <div class="stat-value" style="color: #8b5cf6;">{{ stats.teamSize }}</div>
-          <div class="stat-label">团队人数</div>
-        </div>
-      </div>
-    </div>
-
     <!-- 考勤信息 -->
     <div class="row g-4 mb-4">
       <!-- 考勤打卡 -->

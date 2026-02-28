@@ -21,7 +21,7 @@
         </div>
         <div class="quota-footer">
           <span>已使用 71.4%</span>
-          <span>本月剩余 16 天</span>
+          <span>本月剩余 {{ remainingDays }} 天</span>
         </div>
       </div>
       <div class="stat-card">
@@ -247,6 +247,12 @@ const estEnergy = ref(0)
 const estCost = ref(0)
 
 const stats = ref({ total: 0, approved: 0, pending: 0, rejected: 0 })
+
+const remainingDays = computed(() => {
+  const now = new Date()
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  return lastDay - now.getDate()
+})
 
 const form = ref({
   equipmentId: '',

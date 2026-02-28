@@ -57,4 +57,14 @@ public interface AttendanceMapper extends BaseMapper<AttendanceRecord> {
      */
     @Select("SELECT COUNT(*) FROM attendance_records WHERE user_id = #{userId} AND attendance_date = #{date}")
     int countByUserAndDate(@Param("userId") Long userId, @Param("date") LocalDate date);
+
+    /**
+     * 获取用户指定月份的排班记录（包括未打卡的排班）
+     */
+    @Select("SELECT * FROM attendance_records WHERE user_id = #{userId} " +
+            "AND attendance_date >= #{startDate} AND attendance_date <= #{endDate} " +
+            "ORDER BY attendance_date")
+    List<AttendanceRecord> getMonthlySchedule(@Param("userId") Long userId,
+                                               @Param("startDate") LocalDate startDate,
+                                               @Param("endDate") LocalDate endDate);
 }

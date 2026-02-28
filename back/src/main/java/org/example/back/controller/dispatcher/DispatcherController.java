@@ -7,12 +7,14 @@ import org.example.back.entity.Application;
 import org.example.back.entity.AttendanceRecord;
 import org.example.back.entity.EnergyData;
 import org.example.back.entity.Task;
+import org.example.back.entity.Quota;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.ApplicationStatus;
 import org.example.back.entity.enums.TaskStatus;
 import org.example.back.entity.enums.UserRole;
 import org.example.back.mapper.common.AttendanceMapper;
 import org.example.back.mapper.common.EnergyDataMapper;
+import org.example.back.mapper.common.QuotaMapper;
 import org.example.back.mapper.common.UserMapper;
 import org.example.back.mapper.dispatcher.TaskMapper;
 import org.example.back.mapper.workshop.ApplicationMapper;
@@ -23,7 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +59,67 @@ public class DispatcherController {
 
     @Autowired
     private AttendanceMapper attendanceMapper;
+
+    @Autowired
+    private QuotaMapper quotaMapper;
+
+    /**
+     * 获取各车间用电分配数据（车间名称+配额）
+     * 返回真实车间列表及其当月配额信息
+     */
+    @GetMapping("/workshops")
+    public Result<List<Map<String, Object>>> getWorkshops() {
+        // 查询所有车间用户
+        List<User> workshopUsers = userMapper.selectList(
+            new LambdaQueryWrapper<User>()
+                .eq(User::getRole, UserRole.WORKSHOP)
+                .eq(User::getStatus, "active")
+                .orderByAsc(User::getId)
+        );
+
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (int i = 0; i < workshopUsers.size(); i++) {
+            User user = workshopUsers.get(i);
+            int workshopId = i + 1;
+
+            // 查询该车间当月配额
+            Quota quota = quotaMapper.selectOne(
+                new LambdaQueryWrapper<Quota>()
+                    .eq(Quota::getWorkshopId, workshopId)
+                    .eq(Quota::getYearMonth, yearMonth)
+            );
+
+            // 查询该车间今日实时功率（取最新一小时的能耗数据求和）
+            LambdaQueryWrapper<EnergyData> powerWrapper = new LambdaQueryWrapper<>();
+            powerWrapper.eq(EnergyData::getWorkshopId, workshopId);
+            powerWrapper.eq(EnergyData::getRecordDate, LocalDate.now());
+            powerWrapper.select(EnergyData::getPower);
+            List<EnergyData> todayData = energyDataMapper.selectList(powerWrapper);
+            BigDecimal currentPower = todayData.stream()
+                    .map(EnergyData::getPower)
+                    .filter(p -> p != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::max);
+
+            Map<String, Object> item = new HashMap<>();
+            item.put("workshopId", workshopId);
+            item.put("name", user.getDepartment());
+            item.put("userId", user.getId());
+            item.put("currentPower", currentPower);
+            if (quota != null) {
+                item.put("totalQuota", quota.getTotalQuota());
+                item.put("usedQuota", quota.getUsedQuota());
+            } else {
+                item.put("totalQuota", new BigDecimal("50000"));
+                item.put("usedQuota", BigDecimal.ZERO);
+            }
+
+            result.add(item);
+        }
+
+        return Result.success(result);
+    }
 
     /**
      * 获取所有在职巡检员列表（含今日排班信息）

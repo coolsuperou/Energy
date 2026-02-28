@@ -64,17 +64,8 @@ public class ApplicationController {
             return Result.error(401, "请先登录");
         }
 
-        IPage<Application> result;
-        String role = user.getRole().getValue();
-        
-        if ("dispatcher".equals(role)) {
-            // 调度员查看待审批列表
-            result = applicationService.getPendingApplications(page, size, workshopId);
-        } else {
-            // 经理等其他角色查看所有申请
-            result = applicationService.getAllApplications(page, size, status, workshopId);
-        }
-        
+        // 调度员和经理都可以按状态筛选查看所有申请
+        IPage<Application> result = applicationService.getAllApplications(page, size, status, workshopId);
         return Result.success(result);
     }
 

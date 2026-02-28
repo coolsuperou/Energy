@@ -125,4 +125,30 @@ public class AttendanceController {
                 .collect(Collectors.toList());
         return Result.success(dtos);
     }
+
+    /**
+     * 获取本月排班记录
+     */
+    @GetMapping("/schedule/monthly")
+    public Result<List<AttendanceRecordDTO>> getMonthlySchedule(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            HttpSession session) {
+        User currentUser = (User) session.getAttribute("user");
+        if (currentUser == null) {
+            return Result.error("未登录");
+        }
+
+        if (year == null || month == null) {
+            LocalDate now = LocalDate.now();
+            year = now.getYear();
+            month = now.getMonthValue();
+        }
+
+        List<AttendanceRecord> records = attendanceService.getMonthlySchedule(currentUser, year, month);
+        List<AttendanceRecordDTO> dtos = records.stream()
+                .map(AttendanceRecordDTO::fromEntity)
+                .collect(Collectors.toList());
+        return Result.success(dtos);
+    }
 }

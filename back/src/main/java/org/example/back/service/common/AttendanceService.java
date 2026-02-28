@@ -173,6 +173,15 @@ public class AttendanceService {
     }
 
     /**
+     * 获取月度排班记录（不修正状态，返回原始排班数据）
+     */
+    public List<AttendanceRecord> getMonthlySchedule(User user, int year, int month) {
+        LocalDate startDate = LocalDate.of(year, month, 1);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+        return attendanceMapper.getMonthlySchedule(user.getId(), startDate, endDate);
+    }
+
+    /**
      * 创建或更新排班记录
      */
     public void createOrUpdateSchedule(Long userId, LocalDate date, ShiftType shiftType, 
@@ -187,11 +196,7 @@ public class AttendanceService {
             record.setShiftType(shiftType);
             record.setScheduledStartTime(startTime);
             record.setScheduledEndTime(endTime);
-            
-            // 如果是休息日，设置状态为休息
-            if (shiftType == ShiftType.REST) {
-                record.setStatus(AttendanceStatus.REST);
-            }
+            // 不设置 status，status 只由打卡决定，前端根据 shiftType 判断休息日
             
             attendanceMapper.insert(record);
         } else {
@@ -199,10 +204,7 @@ public class AttendanceService {
             record.setShiftType(shiftType);
             record.setScheduledStartTime(startTime);
             record.setScheduledEndTime(endTime);
-            
-            if (shiftType == ShiftType.REST && record.getClockInTime() == null) {
-                record.setStatus(AttendanceStatus.REST);
-            }
+            // 不操作 status，status 只由打卡决定
             
             attendanceMapper.updateById(record);
         }

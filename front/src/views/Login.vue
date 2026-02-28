@@ -65,7 +65,7 @@
         </div>
         <div class="success-message" v-if="regSuccess">
           <i class="bi bi-check-circle"></i>
-          <span>注册成功！请等待管理员分配角色后登录</span>
+          <span>注册成功！请登录</span>
         </div>
         <div class="error-message" v-if="regError">
           <i class="bi bi-exclamation-circle"></i>
@@ -98,8 +98,32 @@
           </div>
           <div class="form-group">
             <div class="input-with-icon">
+              <i class="bi bi-people input-icon"></i>
+              <select v-model="regForm.role" class="form-input form-select" required>
+                <option value="" disabled>请选择角色</option>
+                <option value="manager">经理</option>
+                <option value="dispatcher">调度员</option>
+                <option value="inspector">巡检员</option>
+                <option value="workshop">车间</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" v-if="regForm.role === 'workshop'">
+            <div class="input-with-icon">
               <i class="bi bi-building input-icon"></i>
-              <input type="text" v-model="regForm.department" class="form-input" placeholder="请输入部门">
+              <select v-model="regForm.department" class="form-input form-select" required>
+                <option value="" disabled>请选择所属车间</option>
+                <option value="第一车间">第一车间</option>
+                <option value="第二车间">第二车间</option>
+                <option value="第三车间">第三车间</option>
+                <option value="第四车间">第四车间</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group" v-if="regForm.role && regForm.role !== 'workshop'">
+            <div class="input-with-icon">
+              <i class="bi bi-building input-icon"></i>
+              <input type="text" v-model="regForm.department" class="form-input" placeholder="所属部门" readonly>
             </div>
           </div>
           <div class="form-group">
@@ -124,7 +148,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -163,7 +187,24 @@ const regLoading = ref(false)
 const regSuccess = ref(false)
 const regError = ref('')
 const regForm = reactive({
-  username: '', name: '', email: '', phone: '', department: '', password: '', confirmPassword: ''
+  username: '', name: '', email: '', phone: '', department: '', role: '', password: '', confirmPassword: ''
+})
+
+// 角色与部门映射
+const roleDepartmentMap = {
+  manager: '能源管理部',
+  dispatcher: '能源管理部',
+  inspector: '设备维护部',
+  workshop: ''
+}
+
+// 监听角色变化，自动填写部门
+watch(() => regForm.role, (newRole) => {
+  if (newRole && roleDepartmentMap[newRole]) {
+    regForm.department = roleDepartmentMap[newRole]
+  } else if (newRole === 'workshop') {
+    regForm.department = ''
+  }
 })
 
 async function handleRegister() {
@@ -356,6 +397,20 @@ onUnmounted(() => {
     background: rgba(15, 23, 42, 0.8);
     border-color: rgba(0, 212, 255, 0.7);
     box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.15), 0 0 20px rgba(0, 212, 255, 0.3);
+  }
+}
+
+.form-select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(0,212,255,0.6)' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+
+  option {
+    background: #0f172a;
+    color: #ffffff;
   }
 }
 

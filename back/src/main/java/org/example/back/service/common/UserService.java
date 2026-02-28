@@ -73,7 +73,12 @@ public class UserService extends ServiceImpl<UserMapper, User> {
         user.setEmail(request.getEmail());
         user.setDepartment(request.getDepartment());
         user.setStatus(UserStatus.ACTIVE);
-        user.setRole(null);
+        // 设置用户选择的角色
+        if (request.getRole() != null && !request.getRole().isEmpty()) {
+            user.setRole(UserRole.valueOf(request.getRole().toUpperCase()));
+        } else {
+            user.setRole(null);
+        }
 
         this.save(user);
 

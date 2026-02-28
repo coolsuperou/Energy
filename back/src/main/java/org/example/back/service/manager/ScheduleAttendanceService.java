@@ -97,9 +97,9 @@ public class ScheduleAttendanceService {
                 boolean isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
 
                 if (isWeekend) {
-                    // 周末默认休息
+                    // 周末默认休息，只设置 shiftType，status 保持 null
+                    // 前端根据 shiftType 判断休息日，status 只记录打卡结果
                     record.setShiftType(ShiftType.REST);
-                    record.setStatus(AttendanceStatus.REST);
                 } else if (user.getRole() == UserRole.INSPECTOR) {
                     // 巡检员按白班/夜班轮换
                     int counter = inspectorShiftCounter.getOrDefault(user.getId(), 0);
@@ -233,17 +233,13 @@ public class ScheduleAttendanceService {
         if (shiftType == ShiftType.REST) {
             record.setScheduledStartTime(null);
             record.setScheduledEndTime(null);
-            record.setStatus(AttendanceStatus.REST);
+            // 不设置 status，status 只由打卡决定
         } else {
             record.setScheduledStartTime(scheduledStartTime != null ? scheduledStartTime : 
                     (shiftType == ShiftType.DAY ? DAY_SHIFT_START : NIGHT_SHIFT_START));
             record.setScheduledEndTime(scheduledEndTime != null ? scheduledEndTime : 
                     (shiftType == ShiftType.DAY ? DAY_SHIFT_END : NIGHT_SHIFT_END));
-            
-            // 如果之前是休息状态，重置为null等待打卡
-            if (record.getStatus() == AttendanceStatus.REST) {
-                record.setStatus(null);
-            }
+            // 不操作 status，status 只由打卡决定
         }
         
         attendanceMapper.updateById(record);

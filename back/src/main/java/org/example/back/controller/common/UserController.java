@@ -69,7 +69,7 @@ public class UserController {
     @PostMapping("/register")
     public Result<UserDTO> register(@Valid @RequestBody RegisterRequest request) {
         UserDTO user = userService.register(request);
-        return Result.success("注册成功，请等待管理员分配角色", user);
+        return Result.success("注册成功", user);
     }
 
     /**

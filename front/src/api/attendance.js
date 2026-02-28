@@ -41,6 +41,15 @@ export function getWeeklySchedule() {
   return request.get('/attendance/schedule/weekly')
 }
 
+/**
+ * 获取本月排班记录
+ */
+export function getMonthlySchedule(year, month) {
+  return request.get('/attendance/schedule/monthly', {
+    params: { year, month }
+  })
+}
+
 
 // ==================== 经理排班考勤管理接口 ====================
 

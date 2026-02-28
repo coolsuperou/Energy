@@ -548,7 +548,7 @@
             <div class="d-flex align-items-center gap-2">
               <button class="btn btn-sm btn-outline-secondary py-0 px-1" @click="changeMonth(-1)"><i class="bi bi-chevron-left"></i></button>
               <span class="text-muted small" style="min-width: 80px; text-align: center;">{{ currentMonth }}</span>
-              <button class="btn btn-sm btn-outline-secondary py-0 px-1" @click="changeMonth(1)" :disabled="isCurrentMonth"><i class="bi bi-chevron-right"></i></button>
+              <button class="btn btn-sm btn-outline-secondary py-0 px-1" @click="changeMonth(1)"><i class="bi bi-chevron-right"></i></button>
             </div>
           </div>
           <div class="card-body">
@@ -642,7 +642,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCurrentUser, updateUserInfo, uploadAvatar, getAvatar } from '@/api/user'
-import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn, getWeeklySchedule } from '@/api/attendance'
+import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn, getWeeklySchedule, getMonthlySchedule } from '@/api/attendance'
 import { getDashboard as getWorkshopDashboard } from '@/api/workshop'
 
 const fileInputRef = ref(null)
@@ -879,18 +879,34 @@ async function loadTodayAttendance() {
   }
 }
 
-function generateCalendarDays(year, month, attendanceRecords) {
+function generateCalendarDays(year, month, attendanceRecords, scheduleRecords) {
   const days = []
   const firstDay = new Date(year, month - 1, 1)
   const lastDay = new Date(year, month, 0)
   let firstDayOfWeek = firstDay.getDay()
   firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1
   
+  // 创建考勤记录映射（只有真正打过卡或排班为休息的才算有考勤）
   const recordMap = {}
   attendanceRecords.forEach(record => {
     const date = new Date(record.date)
     const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-    recordMap[key] = record.status
+    // 有打卡记录 或 排班类型为REST，才视为有效考勤
+    // 用 shiftType 判断休息日，因为 status 可能有脏数据
+    if (record.clockInTime || record.clockOutTime || record.shiftType === 'REST') {
+      recordMap[key] = record.shiftType === 'REST' ? 'REST' : record.status
+    }
+  })
+  
+  // 创建排班记录映射（没有有效考勤的排班日期显示为scheduled）
+  const scheduleMap = {}
+  scheduleRecords.forEach(record => {
+    const date = new Date(record.date)
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    // 只有当没有有效考勤记录时才使用排班记录
+    if (!recordMap[key]) {
+      scheduleMap[key] = record.shiftType || record.status || true
+    }
   })
   
   const prevMonthLastDay = new Date(year, month - 1, 0).getDate()
@@ -905,14 +921,39 @@ function generateCalendarDays(year, month, attendanceRecords) {
   }
   
   const daysInMonth = lastDay.getDate()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
   for (let day = 1; day <= daysInMonth; day++) {
     const key = `${year}-${month}-${day}`
-    const status = recordMap[key] ? 
-      (recordMap[key] === 'NORMAL' ? 'normal' : 
-       recordMap[key] === 'LATE' ? 'late' :
-       recordMap[key] === 'EARLY_LEAVE' ? 'early-leave' :
-       recordMap[key] === 'ABSENT' ? 'absent' :
-       recordMap[key] === 'REST' ? 'rest' : 'future') : 'future'
+    const currentDate = new Date(year, month - 1, day)
+    currentDate.setHours(0, 0, 0, 0)
+    const isPast = currentDate < today
+    
+    let status = 'future'
+    
+    // 优先使用考勤记录（有打卡或REST）
+    if (recordMap[key]) {
+      status = recordMap[key] === 'NORMAL' ? 'normal' : 
+               recordMap[key] === 'LATE' ? 'late' :
+               recordMap[key] === 'EARLY_LEAVE' ? 'early-leave' :
+               recordMap[key] === 'ABSENT' ? 'absent' :
+               recordMap[key] === 'REST' ? 'rest' : 'future'
+    } 
+    // 有排班但没有打卡记录
+    else if (scheduleMap[key]) {
+      const shiftType = scheduleMap[key]
+      if (shiftType === 'REST') {
+        // 休息日
+        status = 'rest'
+      } else if (isPast) {
+        // 过去的日期有排班但没打卡 → 缺勤
+        status = 'absent'
+      } else {
+        // 今日及以后有排班但还没打卡 → 显示蓝色"班"
+        status = 'scheduled'
+      }
+    }
     
     days.push({
       key: `current-${day}`,
@@ -946,13 +987,18 @@ async function loadMonthlyAttendance() {
     const now = new Date()
     isCurrentMonth.value = (year === now.getFullYear() && month === now.getMonth() + 1)
     
+    // 加载考勤记录
     const res = await getMonthlyAttendance(year, month)
-    if (res && res.code === 200 && res.data) {
-      const records = res.data || []
-      calendarDays.value = generateCalendarDays(year, month, records)
-    } else {
-      calendarDays.value = generateCalendarDays(year, month, [])
-    }
+    const attendanceRecords = (res && res.code === 200 && res.data) ? res.data : []
+    console.log('考勤记录:', attendanceRecords)
+    
+    // 加载排班记录
+    const scheduleRes = await getMonthlySchedule(year, month)
+    const scheduleRecords = (scheduleRes && scheduleRes.code === 200 && scheduleRes.data) ? scheduleRes.data : []
+    console.log('排班记录:', scheduleRecords)
+    
+    // 生成日历，传入考勤和排班数据
+    calendarDays.value = generateCalendarDays(year, month, attendanceRecords, scheduleRecords)
     
     const statsRes = await getAttendanceStats(year, month)
     if (statsRes && statsRes.code === 200 && statsRes.data) {
@@ -984,6 +1030,7 @@ const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五'
 function getShiftInfo(status) {
   switch (status) {
     case 'NORMAL':
+    case 'DAY':
       return { name: '正常班', icon: 'bi-sun', class: 'shift-normal', time: '08:00-17:00' }
     case 'MORNING':
       return { name: '早班', icon: 'bi-sunrise', class: 'shift-morning', time: '06:00-14:00' }
@@ -1016,7 +1063,8 @@ async function loadWeeklySchedule() {
       res.data.forEach(record => {
         const date = new Date(record.date)
         const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
-        scheduleMap[key] = record.status
+        // 用 shiftType 来确定排班类型（DAY/NIGHT/REST），这是经理排的班
+        scheduleMap[key] = record.shiftType || record.status
       })
     }
     
@@ -1323,6 +1371,21 @@ onUnmounted(() => {
 .calendar-day.future {
   background: white;
   color: #9ca3af;
+}
+
+.calendar-day.scheduled {
+  background: #dbeafe;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+}
+
+.calendar-day.scheduled::after {
+  content: '班';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 600;
 }
 
 .attendance-day {
