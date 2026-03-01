@@ -32,3 +32,11 @@ import request from './request'
 export function getDashboard() {
   return request.get('/dispatcher/dashboard')
 }
+
+/**
+ * 获取各车间用电分配数据
+ * 返回车间列表及其当月配额信息
+ */
+export function getWorkshops() {
+  return request.get('/dispatcher/workshops')
+}

@@ -55,8 +55,8 @@
                 <div class="ws-label">当前功率(kW)</div>
               </div>
               <div class="ws-stat">
-                <div class="ws-value">{{ ws.limit }}</div>
-                <div class="ws-label">分配限额(kW)</div>
+                <div class="ws-value">{{ ws.limit.toLocaleString() }}</div>
+                <div class="ws-label">分配配额(kWh)</div>
               </div>
               <div class="ws-stat">
                 <div class="ws-value" :class="ws.valueClass">{{ ws.percent }}%</div>
@@ -84,12 +84,12 @@
         <el-form-item label="车间名称">
           <span>{{ adjustDialog.workshop?.name }}</span>
         </el-form-item>
-        <el-form-item label="当前限额">
-          <span>{{ adjustDialog.workshop?.limit }} kW</span>
+        <el-form-item label="当前配额">
+          <span>{{ adjustDialog.workshop?.limit?.toLocaleString() }} kWh</span>
         </el-form-item>
-        <el-form-item label="新限额">
-          <el-input-number v-model="adjustDialog.newLimit" :min="100" :max="2000" :step="50" />
-          <span style="margin-left: 8px">kW</span>
+        <el-form-item label="新配额">
+          <el-input-number v-model="adjustDialog.newLimit" :min="1000" :max="200000" :step="5000" />
+          <span style="margin-left: 8px">kWh</span>
         </el-form-item>
         <el-form-item label="调整原因">
           <el-input v-model="adjustDialog.reason" type="textarea" :rows="2" placeholder="请输入调整原因" />
@@ -107,6 +107,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getApplications } from '@/api/application'
+import { getWorkshops as fetchWorkshops } from '@/api/dispatcher'
 
 // 统计数据
 const stats = ref({
@@ -130,10 +131,12 @@ const adjustDialog = ref({
 // 加载数据
 async function loadData() {
   try {
-    const res = await getApplications({ page: 1, size: 100, status: 'APPROVED' })
-    if (res && res.code === 200 && res.data) {
-      const applications = res.data.records || res.data || []
-      generateWorkshopData(applications)
+    // 从后端获取真实车间和配额数据
+    const wsRes = await fetchWorkshops()
+    if (wsRes && wsRes.code === 200 && wsRes.data) {
+      generateWorkshopData(wsRes.data)
+    } else {
+      generateMockData()
     }
   } catch (e) {
     console.warn('加载数据失败', e)
@@ -141,38 +144,18 @@ async function loadData() {
   }
 }
 
-// 根据申请数据生成车间统计
-function generateWorkshopData(applications) {
-  const now = new Date()
-  const currentHour = now.getHours()
-  
-  const workshopList = [
-    { id: 1, name: '生产一车间', limit: 800, icon: 'bi-building' },
-    { id: 2, name: '生产二车间', limit: 700, icon: 'bi-building' },
-    { id: 3, name: '装配车间', limit: 600, icon: 'bi-tools' },
-    { id: 4, name: '仓储车间', limit: 500, icon: 'bi-box-seam' }
-  ]
-  
+const icons = ['bi-building', 'bi-building', 'bi-tools', 'bi-box-seam']
+
+// 根据后端返回的车间配额数据生成展示数据
+function generateWorkshopData(workshopData) {
   let totalPower = 0
   
-  workshops.value = workshopList.map(ws => {
-    // 计算该车间当前功率
-    let current = 15 // 基础负载
-    applications.forEach(app => {
-      if (app.workshopId === ws.id) {
-        const startH = parseInt((app.startTime || '00:00').split(':')[0])
-        const endH = parseInt((app.endTime || '00:00').split(':')[0])
-        if (currentHour >= startH && currentHour < endH) {
-          current += parseFloat(app.power) || 0
-        }
-      }
-    })
-    
-    // 添加随机波动使数据更真实
-    current = Math.round(current * (0.85 + Math.random() * 0.3))
+  workshops.value = workshopData.map((ws, index) => {
+    const current = parseFloat(ws.currentPower) || 0
+    const limit = parseFloat(ws.totalQuota) || 50000
+    const used = parseFloat(ws.usedQuota) || 0
+    const percent = limit > 0 ? Math.round((used / limit) * 100) : 0
     totalPower += current
-    
-    const percent = Math.round((current / ws.limit) * 100)
     
     let statusText = '正常'
     let statusClass = 'bg-success'
@@ -192,8 +175,12 @@ function generateWorkshopData(applications) {
     }
     
     return {
-      ...ws,
+      id: ws.workshopId,
+      name: ws.name,
+      icon: icons[index] || 'bi-building',
       current,
+      limit: Math.round(limit),
+      used: Math.round(used),
       percent,
       statusText,
       statusClass,
@@ -211,10 +198,10 @@ function generateWorkshopData(applications) {
 // 生成模拟数据
 function generateMockData() {
   workshops.value = [
-    { id: 1, name: '生产一车间', limit: 800, current: 520, percent: 65, icon: 'bi-building', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' },
-    { id: 2, name: '生产二车间', limit: 700, current: 850, percent: 121, icon: 'bi-building', statusText: '超限', statusClass: 'bg-danger', barClass: 'bg-danger', valueClass: 'text-danger' },
-    { id: 3, name: '装配车间', limit: 600, current: 380, percent: 63, icon: 'bi-tools', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' },
-    { id: 4, name: '仓储车间', limit: 500, current: 420, percent: 84, icon: 'bi-box-seam', statusText: '预警', statusClass: 'bg-warning text-dark', barClass: 'bg-warning', valueClass: 'text-warning' }
+    { id: 1, name: '第一车间', limit: 50000, used: 12500, current: 520, percent: 25, icon: 'bi-building', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' },
+    { id: 2, name: '第二车间', limit: 45000, used: 10800, current: 850, percent: 24, icon: 'bi-building', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' },
+    { id: 3, name: '第三车间', limit: 60000, used: 18000, current: 380, percent: 30, icon: 'bi-tools', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' },
+    { id: 4, name: '第四车间', limit: 55000, used: 16500, current: 420, percent: 30, icon: 'bi-box-seam', statusText: '正常', statusClass: 'bg-success', barClass: 'bg-success', valueClass: 'text-primary' }
   ]
   
   const totalPower = workshops.value.reduce((sum, ws) => sum + ws.current, 0)
@@ -282,7 +269,7 @@ function confirmAdjust() {
   }
   
   adjustDialog.value.visible = false
-  ElMessage.success(`${ws.name}限额已调整为 ${adjustDialog.value.newLimit} kW`)
+  ElMessage.success(`${ws.name}配额已调整为 ${adjustDialog.value.newLimit.toLocaleString()} kWh`)
 }
 
 // 查看详情
@@ -291,7 +278,8 @@ function viewDetail(ws) {
     `<div style="line-height: 1.8">
       <p><strong>车间名称：</strong>${ws.name}</p>
       <p><strong>当前功率：</strong>${ws.current} kW</p>
-      <p><strong>分配限额：</strong>${ws.limit} kW</p>
+      <p><strong>分配配额：</strong>${ws.limit?.toLocaleString()} kWh</p>
+      <p><strong>已用配额：</strong>${ws.used?.toLocaleString()} kWh</p>
       <p><strong>使用率：</strong>${ws.percent}%</p>
       <p><strong>状态：</strong>${ws.statusText}</p>
     </div>`,
