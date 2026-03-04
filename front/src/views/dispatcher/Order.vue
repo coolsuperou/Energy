@@ -37,10 +37,10 @@
       <div class="card-body">
         <div class="filter-row">
           <el-radio-group v-model="filter.status" @change="loadOrders">
-            <el-radio-button label="">全部</el-radio-button>
-            <el-radio-button label="pending">待派单</el-radio-button>
-            <el-radio-button label="processing">处理中</el-radio-button>
-            <el-radio-button label="completed">已完成</el-radio-button>
+            <el-radio-button value="">全部</el-radio-button>
+            <el-radio-button value="pending">待派单</el-radio-button>
+            <el-radio-button value="processing">处理中</el-radio-button>
+            <el-radio-button value="completed">已完成</el-radio-button>
           </el-radio-group>
           <el-select v-model="filter.type" placeholder="工单类型" clearable style="width: 150px" @change="loadOrders">
             <el-option label="故障维修" value="repair" />

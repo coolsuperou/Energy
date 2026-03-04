@@ -534,7 +534,7 @@ import * as echarts from 'echarts'
 
 import { getCurrentUser, getUserStats, getWorkStats, updateUserInfo, uploadAvatar, getAvatar } from '@/api/user'
 
-import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn, getWeeklySchedule } from '@/api/attendance'
+import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn, getWeeklySchedule, getMonthlySchedule } from '@/api/attendance'
 
 import { getMySkills, applySkillCertification, reapplySkillCertification } from '@/api/inspection'
 
@@ -1244,7 +1244,7 @@ async function loadTodayAttendance() {
 
 // 生成日历数据
 
-function generateCalendarDays(year, month, attendanceRecords) {
+function generateCalendarDays(year, month, attendanceRecords, scheduleRecords) {
 
   const days = []
 
@@ -1268,8 +1268,7 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
   
 
-  // 创建考勤记录映射表（保存完整记录信息）
-
+  // 创建考勤记录映射（只有真正打过卡或排班为休息的才算有考勤）
   const recordMap = {}
 
   attendanceRecords.forEach(record => {
@@ -1278,11 +1277,22 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
     const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 
-    recordMap[key] = record
+    if (record.clockInTime || record.clockOutTime || record.shiftType === 'REST') {
+      recordMap[key] = record.shiftType === 'REST' ? 'REST' : record.status
+    }
 
   })
 
   
+  // 创建排班记录映射（没有有效考勤的排班日期显示为scheduled）
+  const scheduleMap = {}
+  scheduleRecords.forEach(record => {
+    const date = new Date(record.date)
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    if (!recordMap[key]) {
+      scheduleMap[key] = record.shiftType || record.status || true
+    }
+  })
 
   // 添加上月末尾的日期（填充到周一）
 
@@ -1320,51 +1330,31 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
     const key = `${year}-${month}-${day}`
 
-    const dateObj = new Date(year, month - 1, day)
-
-    const isFuture = dateObj > today
-
-    const record = recordMap[key]
-
-    
+    const currentDate = new Date(year, month - 1, day)
+    currentDate.setHours(0, 0, 0, 0)
+    const isPast = currentDate < today
 
     let status = 'future'
 
-    if (record) {
-
-      if (isFuture) {
-
-        // 未来日期：显示排班信息
-
-        if (record.shiftType === 'REST') {
-
-          status = 'rest'
-
-        } else if (record.shiftType) {
-
-          status = 'scheduled'
-
-        }
-
+    // 优先使用考勤记录（有打卡或REST）
+    if (recordMap[key]) {
+      status = recordMap[key] === 'NORMAL' ? 'normal' : 
+               recordMap[key] === 'LATE' ? 'late' :
+               recordMap[key] === 'EARLY_LEAVE' ? 'early-leave' :
+               recordMap[key] === 'ABSENT' ? 'absent' :
+               recordMap[key] === 'REST' ? 'rest' : 'future'
+    } 
+    // 有排班但没有打卡记录
+    else if (scheduleMap[key]) {
+      const shiftType = scheduleMap[key]
+      if (shiftType === 'REST') {
+        status = 'rest'
+      } else if (isPast) {
+        status = 'absent'
       } else {
-
-        // 今天及过去：显示考勤状态（后端已修正）
-
-        status = record.status === 'NORMAL' ? 'normal' : 
-
-                 record.status === 'LATE' ? 'late' :
-
-                 record.status === 'EARLY_LEAVE' ? 'early-leave' :
-
-                 record.status === 'ABSENT' ? 'absent' :
-
-                 record.status === 'REST' ? 'rest' : 'future'
-
+        status = 'scheduled'
       }
-
     }
-
-    
 
     days.push({
 
@@ -1436,17 +1426,14 @@ async function loadMonthlyAttendance() {
 
     const res = await getMonthlyAttendance(year, month)
 
-    if (res && res.code === 200 && res.data) {
+    const attendanceRecords = (res && res.code === 200 && res.data) ? res.data : []
 
-      const records = res.data || []
+    // 加载排班记录
+    const scheduleRes = await getMonthlySchedule(year, month)
+    const scheduleRecords = (scheduleRes && scheduleRes.code === 200 && scheduleRes.data) ? scheduleRes.data : []
 
-      calendarDays.value = generateCalendarDays(year, month, records)
-
-    } else {
-
-      calendarDays.value = generateCalendarDays(year, month, [])
-
-    }
+    // 生成日历，传入考勤和排班数据
+    calendarDays.value = generateCalendarDays(year, month, attendanceRecords, scheduleRecords)
 
     
 
@@ -2440,7 +2427,20 @@ onUnmounted(() => {
 
 }
 
+.calendar-day.scheduled {
+  background: #dbeafe;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+}
 
+.calendar-day.scheduled::after {
+  content: '班';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 600;
+}
 
 /* 考勤统计图例 */
 
@@ -2460,7 +2460,30 @@ onUnmounted(() => {
 
 }
 
+.attendance-day.normal {
+  background: #dcfce7;
+  color: #16a34a;
+}
 
+.attendance-day.late {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.attendance-day.early-leave {
+  background: #fed7aa;
+  color: #ea580c;
+}
+
+.attendance-day.absent {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.attendance-day.rest {
+  background: #f3f4f6;
+  color: #6b7280;
+}
 
 /* 排班信息样式 */
 

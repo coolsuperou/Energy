@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import { getDashboard } from '@/api/workshop'
 import { getMyApplications } from '@/api/application'
@@ -176,6 +176,10 @@ function getStatusText(status) {
 
 // 渲染功率曲线图（使用后端真实数据）
 function renderPowerChart() {
+  // 延迟初始化：确保容器已有尺寸
+  if (!powerChart && powerChartRef.value) {
+    powerChart = echarts.init(powerChartRef.value)
+  }
   if (!powerChart) return
   
   const currentHour = new Date().getHours()
@@ -318,11 +322,7 @@ onMounted(() => {
   const now = new Date()
   currentTime.value = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
   
-  // 初始化图表
-  if (powerChartRef.value) {
-    powerChart = echarts.init(powerChartRef.value)
-  }
-  
+  // ECharts 在数据加载完成后的 renderPowerChart 中按需初始化
   loadData()
   
   // 监听窗口大小变化

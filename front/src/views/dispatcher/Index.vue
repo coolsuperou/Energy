@@ -78,21 +78,13 @@
               </div>
               <span>审批管理</span>
             </router-link>
-            <router-link to="/dispatcher/task" class="quick-action">
+            <router-link to="/dispatcher/order" class="quick-action">
               <div class="action-icon blue"><i class="bi bi-list-task"></i></div>
               <span>工单管理</span>
             </router-link>
             <router-link to="/dispatcher/dispatch" class="quick-action">
               <div class="action-icon green"><i class="bi bi-sliders"></i></div>
               <span>调度管理</span>
-            </router-link>
-            <router-link to="/dispatcher/energy" class="quick-action">
-              <div class="action-icon purple"><i class="bi bi-graph-up"></i></div>
-              <span>能耗统计</span>
-            </router-link>
-            <router-link to="/dispatcher/report" class="quick-action">
-              <div class="action-icon teal"><i class="bi bi-file-earmark-bar-graph"></i></div>
-              <span>报表中心</span>
             </router-link>
           </div>
         </div>

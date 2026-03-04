@@ -45,16 +45,19 @@
     <!-- 设备巡检卡片 -->
     <div class="equipment-grid" v-if="equipmentList.length > 0">
       <div v-for="eq in equipmentList" :key="eq.equipmentId" class="equip-card"
-           :style="eq.hasAbnormal ? 'border-left: 3px solid #f59e0b' : (eq.repaired ? 'border-left: 3px solid #ef4444; opacity: 0.7' : '')">
+           :style="eq.hasAbnormal ? 'border-left: 3px solid #f59e0b' : ((eq.repaired || eq.equipmentStatus === 'fault') ? 'border-left: 3px solid #ef4444; opacity: 0.7' : '')">
         <div class="equip-card-header">
           <div>
             <div class="equip-name">
-              <i class="bi bi-gear" :class="eq.repaired ? 'text-danger' : (eq.allChecked ? 'text-primary' : 'text-secondary')"></i>
+              <i class="bi bi-gear" :class="(eq.repaired || eq.equipmentStatus === 'fault') ? 'text-danger' : (eq.allChecked ? 'text-primary' : 'text-secondary')"></i>
               {{ eq.equipmentName }}
             </div>
             <div class="equip-location">{{ eq.equipmentLocation || '' }}</div>
           </div>
           <span v-if="eq.repaired" class="badge bg-danger">报修中</span>
+          <span v-else-if="eq.equipmentStatus === 'fault'" class="d-flex gap-1">
+            <span class="badge bg-danger">报修中</span><span class="badge bg-secondary">待巡检</span>
+          </span>
           <span v-else-if="eq.allChecked && !eq.hasAbnormal" class="badge bg-success">已完成</span>
           <span v-else-if="eq.hasAbnormal" class="badge bg-warning text-dark">有异常</span>
           <span v-else class="badge bg-secondary">待巡检</span>
@@ -85,15 +88,15 @@
         </div>
         <div class="equip-card-footer">
           <div class="equip-status">
-            <span class="status-dot" :class="eq.repaired ? '' : (eq.allChecked ? 'done' : 'normal')"
-                  :style="eq.repaired ? 'background:#ef4444' : ''"></span>
-            {{ eq.repaired ? '已报修' : (eq.allChecked ? '巡检完成' : '待巡检') }}
+            <span class="status-dot" :class="(eq.repaired || eq.equipmentStatus === 'fault') ? '' : (eq.allChecked ? 'done' : 'normal')"
+                  :style="(eq.repaired || eq.equipmentStatus === 'fault') ? 'background:#ef4444' : ''"></span>
+            {{ (eq.repaired || eq.equipmentStatus === 'fault') ? '已报修' : (eq.allChecked ? '巡检完成' : '待巡检') }}
           </div>
-          <button v-if="eq.hasAbnormal && !eq.repaired" class="btn btn-outline-warning btn-sm"
+          <button v-if="eq.hasAbnormal && !eq.repaired && eq.equipmentStatus !== 'fault'" class="btn btn-outline-warning btn-sm"
                   @click="handleRepair(eq)">
             <i class="bi bi-send me-1"></i>转报修
           </button>
-          <button v-if="eq.repaired" class="btn btn-outline-success btn-sm"
+          <button v-if="eq.repaired || eq.equipmentStatus === 'fault'" class="btn btn-outline-success btn-sm"
                   @click="handleRestore(eq)">
             <i class="bi bi-arrow-counterclockwise me-1"></i>恢复正常
           </button>

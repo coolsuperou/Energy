@@ -549,9 +549,15 @@ async function loadMonthlyReport() {
 function getRoleName(role) {
   const roleMap = {
     'dispatcher': '调度员',
+    'DISPATCHER': '调度员',
     'inspector': '巡检员',
+    'INSPECTOR': '巡检员',
     'workshop': '车间',
+    'WORKSHOP': '车间',
     'admin': '管理员',
+    'ADMIN': '管理员',
+    'manager': '管理层',
+    'MANAGER': '管理层',
     '调度员': '调度员',
     '巡检员': '巡检员',
     '车间': '车间'

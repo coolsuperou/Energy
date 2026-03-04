@@ -1397,6 +1397,31 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+.attendance-day.normal {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.attendance-day.late {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.attendance-day.early-leave {
+  background: #fed7aa;
+  color: #ea580c;
+}
+
+.attendance-day.absent {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.attendance-day.rest {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
 /* 排班信息样式 */
 .schedule-grid {
   display: grid;

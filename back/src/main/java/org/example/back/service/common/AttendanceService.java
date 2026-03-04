@@ -40,7 +40,7 @@ public class AttendanceService {
         AttendanceRecord record = attendanceMapper.getTodayAttendance(user.getId(), today);
 
         if (record == null) {
-            // 首次打卡（上班）
+            // 无记录，首次打卡（上班）
             record = new AttendanceRecord();
             record.setUserId(user.getId());
             record.setAttendanceDate(today);
@@ -58,20 +58,31 @@ public class AttendanceService {
             }
 
             attendanceMapper.insert(record);
+        } else if (record.getClockInTime() == null) {
+            // 已有排班记录但未打卡上班，设置上班时间
+            record.setClockInTime(now);
+
+            // 判断是否迟到
+            LocalTime scheduledStart = record.getScheduledStartTime() != null ? record.getScheduledStartTime() : WORK_START_TIME;
+            if (now.isAfter(scheduledStart.plusMinutes(LATE_THRESHOLD_MINUTES))) {
+                record.setStatus(AttendanceStatus.LATE);
+            } else {
+                record.setStatus(AttendanceStatus.NORMAL);
+            }
+
+            attendanceMapper.updateById(record);
         } else if (record.getClockOutTime() == null) {
-            // 第二次打卡（下班）
+            // 已打卡上班，第二次打卡（下班）
             record.setClockOutTime(now);
 
             // 计算工作时长
-            if (record.getClockInTime() != null) {
-                Duration duration = Duration.between(record.getClockInTime(), now);
-                BigDecimal hours = BigDecimal.valueOf(duration.toMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
-                record.setWorkHours(hours);
-            }
+            Duration duration = Duration.between(record.getClockInTime(), now);
+            BigDecimal hours = BigDecimal.valueOf(duration.toMinutes()).divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP);
+            record.setWorkHours(hours);
 
             // 判断是否早退
             LocalTime scheduledEnd = record.getScheduledEndTime() != null ? record.getScheduledEndTime() : WORK_END_TIME;
-            if (now.isBefore(scheduledEnd) && record.getStatus() == AttendanceStatus.NORMAL) {
+            if (now.isBefore(scheduledEnd)) {
                 record.setStatus(AttendanceStatus.EARLY_LEAVE);
             }
 

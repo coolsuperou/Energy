@@ -5,10 +5,10 @@
       <div class="card-body">
         <div class="filter-row">
           <el-radio-group v-model="filter.status" @change="loadApplications">
-            <el-radio-button label="PENDING">待审批 ({{ counts.pending }})</el-radio-button>
-            <el-radio-button label="APPROVED">已批准</el-radio-button>
-            <el-radio-button label="REJECTED">已拒绝</el-radio-button>
-            <el-radio-button label="">全部</el-radio-button>
+            <el-radio-button value="PENDING">待审批 ({{ counts.pending }})</el-radio-button>
+            <el-radio-button value="APPROVED">已批准</el-radio-button>
+            <el-radio-button value="REJECTED">已拒绝</el-radio-button>
+            <el-radio-button value="">全部</el-radio-button>
           </el-radio-group>
           <div class="filter-spacer"></div>
           <el-select v-model="filter.workshopId" placeholder="全部车间" clearable style="width: 150px" @change="loadApplications">

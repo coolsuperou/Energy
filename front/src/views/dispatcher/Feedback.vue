@@ -134,15 +134,38 @@
             </div>
           </div>
 
-          <!-- 底部操作 -->
-          <div class="detail-footer" v-if="currentFeedback.status === 'pending'">
-            <button class="btn btn-primary btn-sm" @click="detailVisible = false; showHandleModal(currentFeedback)">
-              <i class="bi bi-reply"></i> 处理反馈
-            </button>
-            <button class="btn btn-outline-warning btn-sm" v-if="currentFeedback.type === 'fault'" @click="detailVisible = false; showDispatchModal(currentFeedback)">
-              <i class="bi bi-arrow-right-circle"></i> 转工单
-            </button>
+          <!-- 图片附件 -->
+          <div class="detail-section">
+            <div class="detail-section-title"><i class="bi bi-image"></i> 图片附件</div>
+            <div v-if="loadingImages" class="text-muted small">
+              <div class="spinner-border spinner-border-sm" role="status"></div>
+              <span class="ms-2">加载图片中...</span>
+            </div>
+            <div v-else-if="detailImages.length > 0" class="d-flex flex-wrap gap-2">
+              <div 
+                v-for="img in detailImages" 
+                :key="img.id" 
+                class="image-thumbnail"
+                @click="previewImage(img.accessUrl)"
+              >
+                <img :src="img.accessUrl" :alt="img.originalName" />
+                <div class="image-overlay">
+                  <i class="bi bi-zoom-in"></i>
+                </div>
+              </div>
+            </div>
+            <div v-else class="text-muted small">无</div>
           </div>
+
+        </div>
+        <!-- 底部操作（固定在弹窗底部） -->
+        <div class="detail-footer" v-if="currentFeedback && currentFeedback.status === 'pending'">
+          <button class="btn btn-primary btn-sm" @click="detailVisible = false; showHandleModal(currentFeedback)">
+            <i class="bi bi-reply"></i> 处理反馈
+          </button>
+          <button class="btn btn-outline-warning btn-sm" v-if="currentFeedback.type === 'fault'" @click="detailVisible = false; showDispatchModal(currentFeedback)">
+            <i class="bi bi-arrow-right-circle"></i> 转工单
+          </button>
         </div>
       </div>
     </div>
@@ -165,6 +188,12 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 图片预览 -->
+    <div class="image-preview-overlay" v-if="showImageViewer" @click="showImageViewer = false">
+      <img :src="previewImageUrl" @click.stop />
+      <button class="preview-close" @click="showImageViewer = false">&times;</button>
     </div>
 
     <!-- 转工单弹窗 -->
@@ -219,7 +248,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getAllFeedbacks, handleFeedback } from '@/api/feedback'
+import { getAllFeedbacks, handleFeedback, getFeedbackImages } from '@/api/feedback'
 import request from '@/api/request'
 
 const feedbacks = ref([])
@@ -236,6 +265,10 @@ const dispatchVisible = ref(false)
 const handleForm = ref({ reply: '' })
 const dispatchForm = ref({ assigneeId: '' })
 const inspectors = ref([])
+const detailImages = ref([])
+const loadingImages = ref(false)
+const showImageViewer = ref(false)
+const previewImageUrl = ref('')
 
 function typeText(type) {
   const map = { fault: '故障报修', suggestion: '用电建议', question: '咨询问题', other: '其他' }
@@ -293,9 +326,28 @@ async function loadInspectors() {
   }
 }
 
-function showDetail(item) {
+async function showDetail(item) {
   currentFeedback.value = item
   detailVisible.value = true
+  
+  // 加载图片
+  loadingImages.value = true
+  detailImages.value = []
+  try {
+    const res = await getFeedbackImages(item.id)
+    if (res.code === 200 && res.data) {
+      detailImages.value = res.data
+    }
+  } catch (e) {
+    console.error('加载图片失败', e)
+  } finally {
+    loadingImages.value = false
+  }
+}
+
+function previewImage(url) {
+  previewImageUrl.value = url
+  showImageViewer.value = true
 }
 
 function showHandleModal(item) {
@@ -443,8 +495,11 @@ onMounted(() => {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
-    padding-top: 16px;
-    border-top: 1px solid #f1f5f9;
+    padding: 12px 20px;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+    flex-shrink: 0;
   }
 }
 
@@ -466,8 +521,9 @@ onMounted(() => {
   background: #fff;
   border-radius: 8px;
   width: 90%;
-  max-height: 80vh;
-  overflow: auto;
+  max-height: 95vh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
@@ -493,7 +549,9 @@ onMounted(() => {
 }
 
 .modal-body {
-  padding: 20px;
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .detail-row {
@@ -636,6 +694,77 @@ onMounted(() => {
   white-space: nowrap;
 
   &.idle { background: #dcfce7; color: #16a34a; }
+}
+
+// 图片缩略图
+.image-thumbnail {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  border: 1px solid #e2e8f0;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: #fff;
+    font-size: 20px;
+  }
+  
+  &:hover .image-overlay {
+    opacity: 1;
+  }
+}
+
+// 图片预览
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  
+  img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 4px;
+  }
+  
+  .preview-close {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 36px;
+    cursor: pointer;
+    opacity: 0.7;
+    &:hover { opacity: 1; }
+  }
 }
 
 .inspector-check {

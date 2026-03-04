@@ -211,29 +211,37 @@ public class InspectionService {
      */
     @Transactional
     public void restoreFromRepair(Long planId, Long equipmentId) {
-        // 1. 清除该设备所有检查记录的repaired标记
+        // 1. 检查设备是否处于故障状态
+        Equipment equipment = equipmentMapper.selectById(equipmentId);
+        if (equipment == null) {
+            throw new RuntimeException("设备不存在");
+        }
+        boolean equipmentIsFault = equipment.getStatus() == EquipmentStatus.FAULT;
+
+        // 2. 检查当前计划中是否有repaired标记
         LambdaQueryWrapper<InspectionRecord> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(InspectionRecord::getPlanId, planId)
                .eq(InspectionRecord::getEquipmentId, equipmentId);
         List<InspectionRecord> records = recordMapper.selectList(wrapper);
-        if (records.isEmpty()) {
-            throw new RuntimeException("未找到相关检查记录");
-        }
-        boolean wasRepaired = records.stream().anyMatch(r -> Boolean.TRUE.equals(r.getRepaired()));
-        if (!wasRepaired) {
+        boolean hasRepairedRecord = records.stream().anyMatch(r -> Boolean.TRUE.equals(r.getRepaired()));
+
+        // 设备不是故障状态且当前计划也没有repaired标记，才报错
+        if (!equipmentIsFault && !hasRepairedRecord) {
             throw new RuntimeException("该设备未处于报修状态");
         }
+
+        // 3. 清除当前计划中该设备所有检查记录的repaired标记和结果（重新巡检）
         for (InspectionRecord r : records) {
             r.setRepaired(false);
+            r.setResult(null);
+            r.setRemark(null);
+            r.setCheckedAt(null);
             recordMapper.updateById(r);
         }
 
-        // 2. 恢复设备状态为normal
-        Equipment equipment = equipmentMapper.selectById(equipmentId);
-        if (equipment != null) {
-            equipment.setStatus(EquipmentStatus.NORMAL);
-            equipmentMapper.updateById(equipment);
-        }
+        // 4. 恢复设备状态为normal
+        equipment.setStatus(EquipmentStatus.NORMAL);
+        equipmentMapper.updateById(equipment);
     }
 
     /**

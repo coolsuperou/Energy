@@ -64,9 +64,16 @@ public class EquipmentController {
      */
     private Long parseWorkshopIdFromDepartment(String department) {
         if (department == null) return null;
-        if (department.contains("第一")) return 1L;
-        if (department.contains("第二")) return 2L;
-        if (department.contains("第三")) return 3L;
+        // 通用解析：支持"第一车间"~"第N车间"格式
+        String[] cnNumbers = {"一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
+        for (int i = 0; i < cnNumbers.length; i++) {
+            if (department.contains("第" + cnNumbers[i])) return (long) (i + 1);
+        }
+        // 尝试匹配"第N车间"中的数字格式（如"第1车间"）
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("第(\\d+)").matcher(department);
+        if (matcher.find()) {
+            return Long.parseLong(matcher.group(1));
+        }
         return null;
     }
 }

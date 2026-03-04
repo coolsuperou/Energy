@@ -302,7 +302,34 @@
 
     </div>
 
-
+    <!-- 本周排班信息 -->
+    <div class="row g-4 mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-calendar-week me-2"></i>本周排班</span>
+            <span class="text-muted small">{{ weekRange }}</span>
+          </div>
+          <div class="card-body">
+            <div class="schedule-grid">
+              <div 
+                v-for="(day, index) in weeklySchedule" 
+                :key="index" 
+                class="schedule-day"
+                :class="{ 'today': day.isToday, 'rest-day': day.isRest }">
+                <div class="schedule-weekday">{{ day.weekday }}</div>
+                <div class="schedule-date">{{ day.date }}</div>
+                <div class="schedule-shift" :class="day.shiftClass">
+                  <i class="bi" :class="day.shiftIcon"></i>
+                  {{ day.shiftName }}
+                </div>
+                <div class="schedule-time small text-muted">{{ day.workTime }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 编辑资料对话框 -->
 
@@ -354,7 +381,7 @@ import { ElMessage } from 'element-plus'
 
 import { getCurrentUser, updateUserInfo, uploadAvatar, getAvatar } from '@/api/user'
 
-import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn } from '@/api/attendance'
+import { getTodayAttendance, getMonthlyAttendance, getAttendanceStats, clockIn, getWeeklySchedule, getMonthlySchedule } from '@/api/attendance'
 
 import { getDashboard } from '@/api/dispatcher'
 
@@ -434,7 +461,8 @@ const attendanceStats = ref({
 
 })
 
-
+const weeklySchedule = ref([])
+const weekRange = ref('')
 
 const editDialog = ref({
 
@@ -820,7 +848,7 @@ async function loadTodayAttendance() {
 
 
 
-function generateCalendarDays(year, month, attendanceRecords) {
+function generateCalendarDays(year, month, attendanceRecords, scheduleRecords) {
 
   const days = []
 
@@ -834,6 +862,7 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
   
 
+  // 创建考勤记录映射（只有真正打过卡或排班为休息的才算有考勤）
   const recordMap = {}
 
   attendanceRecords.forEach(record => {
@@ -842,11 +871,22 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
     const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
 
-    recordMap[key] = record.status
+    if (record.clockInTime || record.clockOutTime || record.shiftType === 'REST') {
+      recordMap[key] = record.shiftType === 'REST' ? 'REST' : record.status
+    }
 
   })
 
   
+  // 创建排班记录映射（没有有效考勤的排班日期显示为scheduled）
+  const scheduleMap = {}
+  scheduleRecords.forEach(record => {
+    const date = new Date(record.date)
+    const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+    if (!recordMap[key]) {
+      scheduleMap[key] = record.shiftType || record.status || true
+    }
+  })
 
   const prevMonthLastDay = new Date(year, month - 1, 0).getDate()
 
@@ -872,23 +912,38 @@ function generateCalendarDays(year, month, attendanceRecords) {
 
   const daysInMonth = lastDay.getDate()
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
   for (let day = 1; day <= daysInMonth; day++) {
 
     const key = `${year}-${month}-${day}`
 
-    const status = recordMap[key] ? 
+    const currentDate = new Date(year, month - 1, day)
+    currentDate.setHours(0, 0, 0, 0)
+    const isPast = currentDate < today
 
-      (recordMap[key] === 'NORMAL' ? 'normal' : 
+    let status = 'future'
 
-       recordMap[key] === 'LATE' ? 'late' :
-
-       recordMap[key] === 'EARLY_LEAVE' ? 'early-leave' :
-
-       recordMap[key] === 'ABSENT' ? 'absent' :
-
-       recordMap[key] === 'REST' ? 'rest' : 'future') : 'future'
-
-    
+    // 优先使用考勤记录（有打卡或REST）
+    if (recordMap[key]) {
+      status = recordMap[key] === 'NORMAL' ? 'normal' : 
+               recordMap[key] === 'LATE' ? 'late' :
+               recordMap[key] === 'EARLY_LEAVE' ? 'early-leave' :
+               recordMap[key] === 'ABSENT' ? 'absent' :
+               recordMap[key] === 'REST' ? 'rest' : 'future'
+    } 
+    // 有排班但没有打卡记录
+    else if (scheduleMap[key]) {
+      const shiftType = scheduleMap[key]
+      if (shiftType === 'REST') {
+        status = 'rest'
+      } else if (isPast) {
+        status = 'absent'
+      } else {
+        status = 'scheduled'
+      }
+    }
 
     days.push({
 
@@ -956,17 +1011,14 @@ async function loadMonthlyAttendance() {
 
     const res = await getMonthlyAttendance(year, month)
 
-    if (res && res.code === 200 && res.data) {
+    const attendanceRecords = (res && res.code === 200 && res.data) ? res.data : []
 
-      const records = res.data || []
+    // 加载排班记录
+    const scheduleRes = await getMonthlySchedule(year, month)
+    const scheduleRecords = (scheduleRes && scheduleRes.code === 200 && scheduleRes.data) ? scheduleRes.data : []
 
-      calendarDays.value = generateCalendarDays(year, month, records)
-
-    } else {
-
-      calendarDays.value = generateCalendarDays(year, month, [])
-
-    }
+    // 生成日历，传入考勤和排班数据
+    calendarDays.value = generateCalendarDays(year, month, attendanceRecords, scheduleRecords)
 
     
 
@@ -1018,7 +1070,108 @@ function changeMonth(delta) {
 
 }
 
+const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
+function getShiftInfo(status) {
+  switch (status) {
+    case 'NORMAL':
+    case 'DAY':
+      return { name: '正常班', icon: 'bi-sun', class: 'shift-normal', time: '08:00-17:00' }
+    case 'MORNING':
+      return { name: '早班', icon: 'bi-sunrise', class: 'shift-morning', time: '06:00-14:00' }
+    case 'AFTERNOON':
+      return { name: '中班', icon: 'bi-sun', class: 'shift-afternoon', time: '14:00-22:00' }
+    case 'NIGHT':
+      return { name: '夜班', icon: 'bi-moon-stars', class: 'shift-night', time: '22:00-06:00' }
+    case 'REST':
+      return { name: '休息', icon: 'bi-house', class: 'shift-rest', time: '休息日' }
+    default:
+      return { name: '待排班', icon: 'bi-question-circle', class: 'shift-pending', time: '--' }
+  }
+}
+
+async function loadWeeklySchedule() {
+  try {
+    const now = new Date()
+    const dayOfWeek = now.getDay()
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+    const sunday = new Date(monday)
+    sunday.setDate(monday.getDate() + 6)
+    
+    weekRange.value = `${monday.getMonth() + 1}月${monday.getDate()}日 - ${sunday.getMonth() + 1}月${sunday.getDate()}日`
+    
+    const res = await getWeeklySchedule()
+    const scheduleMap = {}
+    
+    if (res && res.code === 200 && res.data) {
+      res.data.forEach(record => {
+        const date = new Date(record.date)
+        const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+        scheduleMap[key] = record.shiftType || record.status
+      })
+    }
+    
+    const schedule = []
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + i)
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+      const status = scheduleMap[key] || null
+      const shiftInfo = getShiftInfo(status)
+      const isToday = date.toDateString() === now.toDateString()
+      
+      schedule.push({
+        weekday: weekdayNames[date.getDay()],
+        date: `${date.getMonth() + 1}/${date.getDate()}`,
+        shiftName: shiftInfo.name,
+        shiftIcon: shiftInfo.icon,
+        shiftClass: shiftInfo.class,
+        workTime: shiftInfo.time,
+        isToday: isToday,
+        isRest: status === 'REST'
+      })
+    }
+    
+    weeklySchedule.value = schedule
+  } catch (e) {
+    console.error('加载本周排班失败', e)
+    generateDefaultSchedule()
+  }
+}
+
+function generateDefaultSchedule() {
+  const now = new Date()
+  const dayOfWeek = now.getDay()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1))
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  
+  weekRange.value = `${monday.getMonth() + 1}月${monday.getDate()}日 - ${sunday.getMonth() + 1}月${sunday.getDate()}日`
+  
+  const schedule = []
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + i)
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+    const shiftInfo = isWeekend ? getShiftInfo('REST') : getShiftInfo('NORMAL')
+    const isToday = date.toDateString() === now.toDateString()
+    
+    schedule.push({
+      weekday: weekdayNames[date.getDay()],
+      date: `${date.getMonth() + 1}/${date.getDate()}`,
+      shiftName: shiftInfo.name,
+      shiftIcon: shiftInfo.icon,
+      shiftClass: shiftInfo.class,
+      workTime: shiftInfo.time,
+      isToday: isToday,
+      isRest: isWeekend
+    })
+  }
+  
+  weeklySchedule.value = schedule
+}
 
 async function loadStats() {
 
@@ -1065,6 +1218,8 @@ onMounted(() => {
   loadTodayAttendance()
 
   loadMonthlyAttendance()
+
+  loadWeeklySchedule()
 
   loadStats()
 
@@ -1520,5 +1675,136 @@ onUnmounted(() => {
 
 }
 
+.attendance-day.normal {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.attendance-day.late {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.attendance-day.early-leave {
+  background: #fed7aa;
+  color: #ea580c;
+}
+
+.attendance-day.absent {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.attendance-day.rest {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.calendar-day.scheduled {
+  background: #dbeafe;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
+}
+
+.calendar-day.scheduled::after {
+  content: '班';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+/* 排班信息样式 */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+}
+
+.schedule-day {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.schedule-day:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.schedule-day.today {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea10, #764ba210);
+}
+
+.schedule-day.rest-day {
+  background: #f3f4f6;
+}
+
+.schedule-weekday {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.schedule-date {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.schedule-shift {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.schedule-shift i {
+  font-size: 14px;
+}
+
+.schedule-time {
+  font-size: 11px;
+}
+
+.shift-normal {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.shift-morning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.shift-afternoon {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.shift-night {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.shift-rest {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.shift-pending {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
 </style>
 
