@@ -14,6 +14,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.example.back.util.AESUtil;
 
 import java.time.LocalDateTime;
 
@@ -106,8 +107,8 @@ public class AdminUserService {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
         
-        // 加密密码
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        String rawPassword = AESUtil.decrypt(user.getPassword());
+        user.setPassword(passwordEncoder.encode(rawPassword));
         
         // 设置默认状态
         if (user.getStatus() == null) {
@@ -168,9 +169,9 @@ public class AdminUserService {
             existingUser.setStatus(user.getStatus());
         }
         
-        // 如果提供了新密码，则更新密码
         if (StringUtils.hasText(user.getPassword())) {
-            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+            String rawPassword = AESUtil.decrypt(user.getPassword());
+            existingUser.setPassword(passwordEncoder.encode(rawPassword));
         }
         
         existingUser.setUpdatedAt(LocalDateTime.now());
@@ -247,7 +248,8 @@ public class AdminUserService {
             throw new BusinessException(ErrorCode.PARAM_ERROR);
         }
         
-        user.setPassword(passwordEncoder.encode(newPassword));
+        String rawPassword = AESUtil.decrypt(newPassword);
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setUpdatedAt(LocalDateTime.now());
         
         userMapper.updateById(user);

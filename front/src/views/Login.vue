@@ -153,6 +153,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { register } from '@/api/auth'
+import { encryptPassword } from '@/utils/crypto'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -216,7 +217,9 @@ async function handleRegister() {
   }
   regLoading.value = true
   try {
-    await register(regForm)
+    const submitData = { ...regForm, password: encryptPassword(regForm.password) }
+    delete submitData.confirmPassword
+    await register(submitData)
     regSuccess.value = true
     setTimeout(() => { showRegister.value = false }, 3000)
   } catch (e) {

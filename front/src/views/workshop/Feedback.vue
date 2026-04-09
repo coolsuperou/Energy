@@ -133,7 +133,6 @@
                 <th>编号</th>
                 <th>类型</th>
                 <th>描述</th>
-                <th>图片</th>
                 <th>提交时间</th>
                 <th>状态</th>
                 <th>操作</th>
@@ -144,12 +143,6 @@
                 <td class="fw-semibold">{{ item.feedbackNo }}</td>
                 <td><span :class="['badge', getTypeBadgeClass(item.type)]">{{ getTypeText(item.type) }}</span></td>
                 <td class="text-truncate" style="max-width: 200px;">{{ item.description }}</td>
-                <td>
-                  <span v-if="item.imageCount > 0" class="badge bg-info">
-                    <i class="bi bi-image me-1"></i>{{ item.imageCount }}张
-                  </span>
-                  <span v-else class="text-muted">-</span>
-                </td>
                 <td>{{ formatTime(item.createTime) }}</td>
                 <td><span :class="['badge-status', getStatusClass(item.status)]">{{ getStatusText(item.status) }}</span></td>
                 <td>
@@ -158,10 +151,10 @@
                 </td>
               </tr>
               <tr v-if="feedbacks.length === 0 && !loading">
-                <td colspan="7" class="text-center text-muted py-4">暂无反馈记录</td>
+                <td colspan="6" class="text-center text-muted py-4">暂无反馈记录</td>
               </tr>
               <tr v-if="loading">
-                <td colspan="7" class="text-center py-4">
+                <td colspan="6" class="text-center py-4">
                   <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                   <span class="ms-2">加载中...</span>
                 </td>

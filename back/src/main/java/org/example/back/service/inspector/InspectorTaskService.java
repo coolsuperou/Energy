@@ -2,20 +2,26 @@ package org.example.back.service.inspector;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.example.back.entity.Equipment;
+import org.example.back.entity.Feedback;
 import org.example.back.entity.Task;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.TaskStatus;
 import org.example.back.mapper.common.EquipmentMapper;
 import org.example.back.mapper.common.UserMapper;
 import org.example.back.mapper.dispatcher.TaskMapper;
+import org.example.back.service.common.MinioService;
+import org.example.back.service.workshop.FeedbackService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 巡检员任务服务类
@@ -37,6 +43,12 @@ public class InspectorTaskService {
 
     @Autowired
     private EquipmentMapper equipmentMapper;
+
+    @Autowired
+    private MinioService minioService;
+
+    @Autowired
+    private FeedbackService feedbackService;
 
     /**
      * 获取我的任务列表
@@ -94,6 +106,7 @@ public class InspectorTaskService {
      * @param reportImages 完成图片URL（逗号分隔，可为null）
      * @param userId 当前用户ID
      */
+    @Transactional(rollbackFor = Exception.class)
     public void completeTask(Long taskId, String report, String reportImages, Long userId) {
         Task task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -116,6 +129,22 @@ public class InspectorTaskService {
         task.setCompletedAt(LocalDateTime.now());
         
         taskMapper.updateById(task);
+
+        // 反馈转工单：工单完成后将关联反馈从「处理中」置为「已解决」，调度员端列表同步
+        if (task.getFeedbackId() != null) {
+            Feedback feedback = feedbackService.getById(task.getFeedbackId());
+            if (feedback != null && "processing".equals(feedback.getStatus())) {
+                String replyText = (report != null && !report.isBlank())
+                        ? "【工单已完成】" + report
+                        : "【工单已完成】维修已完成。";
+                feedback.setStatus("resolved");
+                feedback.setReply(replyText);
+                feedback.setHandledBy(userId);
+                feedback.setHandledAt(LocalDateTime.now());
+                feedback.setUpdateTime(LocalDateTime.now());
+                feedbackService.updateById(feedback);
+            }
+        }
     }
 
     /**
@@ -191,6 +220,19 @@ public class InspectorTaskService {
             if (equipment != null) {
                 task.setEquipmentName(equipment.getName());
             }
+        }
+
+        // 将 reportImages 中存储的相对路径转换为可访问的带签名 URL
+        // 兼容旧数据（已经是完整 URL）和新数据（相对路径）
+        if (task.getReportImages() != null && !task.getReportImages().isEmpty()) {
+            String converted = Arrays.stream(task.getReportImages().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(path -> (path.startsWith("http://") || path.startsWith("https://"))
+                            ? path
+                            : minioService.getFileUrl(path))
+                    .collect(Collectors.joining(","));
+            task.setReportImages(converted);
         }
     }
 }

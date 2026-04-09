@@ -385,6 +385,27 @@
 
 .card-body { padding: 20px; }
 
+/* 车间用电排名：Bootstrap .card 为纵向 flex，网格拉伸后与左侧图表等高；
+   .card-body 被 flex:1 拉高，需显式顶对齐，避免仅一条数据时视觉上像垂直居中 */
+.manager-home .workshop-ranking-card {
+  > .card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
+  .ranking-list {
+    width: 100%;
+    flex: 0 0 auto;
+  }
+
+  .empty-tip {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
+
 .chart-placeholder {
   height: 200px;
   display: flex;

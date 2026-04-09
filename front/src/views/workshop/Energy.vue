@@ -135,7 +135,9 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>能耗明细记录</span>
-        <button class="btn btn-outline-primary btn-sm"><i class="bi bi-download me-1"></i>导出</button>
+        <button class="btn btn-outline-primary btn-sm" @click="exportEnergyData">
+          <i class="bi bi-download me-1"></i>导出
+        </button>
       </div>
       <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -187,6 +189,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
+import * as XLSX from 'xlsx'
 import { getMyWorkshopEnergy } from '@/api/workshop'
 import { getMyApplications } from '@/api/application'
 
@@ -458,6 +461,55 @@ function renderPieChart() {
 function handleResize() {
   powerChart?.resize()
   pieChart?.resize()
+}
+
+// 导出能耗明细数据
+function exportEnergyData() {
+  if (energyDetails.value.length === 0) {
+    alert('暂无能耗数据可导出')
+    return
+  }
+
+  // 准备导出数据
+  const exportData = energyDetails.value.map(item => ({
+    '日期': item.recordDate,
+    '时间': item.recordHour + ':00',
+    '设备ID': item.equipmentId,
+    '时段类型': getPeriodLabel(item.periodType),
+    '功率(kW)': item.power,
+    '电量(kWh)': item.energy,
+    '电价(元/kWh)': item.price,
+    '费用(元)': item.cost
+  }))
+
+  // 创建工作簿
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(exportData)
+
+  // 设置列宽
+  const colWidths = [
+    { wch: 12 },  // 日期
+    { wch: 8 },   // 时间
+    { wch: 10 },  // 设备ID
+    { wch: 10 },  // 时段类型
+    { wch: 12 },  // 功率
+    { wch: 12 },  // 电量
+    { wch: 14 },  // 电价
+    { wch: 10 }   // 费用
+  ]
+  ws['!cols'] = colWidths
+
+  // 将工作表添加到工作簿
+  XLSX.utils.book_append_sheet(wb, ws, '能耗明细')
+
+  // 生成文件名（包含日期范围）
+  const dateStr = dateRange.value && dateRange.value.length === 2
+    ? `${dateRange.value[0]}_${dateRange.value[1]}`
+    : new Date().toISOString().split('T')[0]
+  const fileName = `能耗明细_${dateStr}.xlsx`
+
+  // 导出文件
+  XLSX.writeFile(wb, fileName)
 }
 
 let refreshTimer = null

@@ -1,4 +1,5 @@
 import request from './request'
+import { encryptPassword } from '@/utils/crypto'
 
 /**
  * 获取用户列表
@@ -93,7 +94,7 @@ export function getAvatar() {
  */
 export function changePassword(oldPassword, newPassword) {
   return request.put('/users/current/password', {
-    oldPassword,
-    newPassword
+    oldPassword: encryptPassword(oldPassword),
+    newPassword: encryptPassword(newPassword)
   })
 }

@@ -58,8 +58,8 @@
         </div>
       </div>
 
-      <!-- 车间排名 -->
-      <div class="card">
+      <!-- 车间排名（与左侧图表等高时，内容需靠上对齐） -->
+      <div class="card workshop-ranking-card">
         <div class="card-header">车间用电排名（今日）</div>
         <div class="card-body">
           <div class="ranking-list" v-if="workshopRanking.length">

@@ -94,19 +94,18 @@ public class MyTaskController {
             return Result.error(401, "请先登录");
         }
 
-        // 上传图片到MinIO
+        // 上传图片到MinIO，只存对象相对路径，不存临时访问 URL
         String imageUrls = null;
         if (images != null && !images.isEmpty()) {
-            List<String> urls = new ArrayList<>();
+            List<String> paths = new ArrayList<>();
             for (MultipartFile image : images) {
                 if (!image.isEmpty()) {
                     String path = minioService.uploadFile(image, user.getId(), MinioService.FileType.REPORT);
-                    String fullUrl = minioService.getFileUrl(path);
-                    urls.add(fullUrl);
+                    paths.add(path);
                 }
             }
-            if (!urls.isEmpty()) {
-                imageUrls = String.join(",", urls);
+            if (!paths.isEmpty()) {
+                imageUrls = String.join(",", paths);
             }
         }
 

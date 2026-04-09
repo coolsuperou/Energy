@@ -22,6 +22,13 @@ export function getMyApplications(params) {
 }
 
 /**
+ * 获取当前车间用户本月用电配额（与调度端 quotas 一致）
+ */
+export function getMyQuota() {
+  return request.get('/applications/quota/current')
+}
+
+/**
  * 获取待审批申请列表（调度员）
  */
 export function getPendingApplications(params) {

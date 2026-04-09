@@ -21,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.example.back.util.AESUtil;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -47,6 +50,8 @@ public class UserController {
 
     @Autowired
     private SkillService skillService;
+
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
      * 用户登录
@@ -406,17 +411,24 @@ public class UserController {
         if (newPassword == null || newPassword.isEmpty()) {
             return Result.error("请输入新密码");
         }
-        if (newPassword.length() < 6 || newPassword.length() > 20) {
+        String rawOldPassword = AESUtil.decrypt(oldPassword);
+        String rawNewPassword = AESUtil.decrypt(newPassword);
+
+        if (rawNewPassword.length() < 6 || rawNewPassword.length() > 20) {
             return Result.error("新密码长度必须在6-20之间");
         }
 
-        // 验证原密码（开发环境：明文比较）
-        if (!oldPassword.equals(currentUser.getPassword())) {
+        boolean oldMatched;
+        if (currentUser.getPassword().startsWith("$2a$") || currentUser.getPassword().startsWith("$2b$")) {
+            oldMatched = passwordEncoder.matches(rawOldPassword, currentUser.getPassword());
+        } else {
+            oldMatched = rawOldPassword.equals(currentUser.getPassword());
+        }
+        if (!oldMatched) {
             return Result.error("原密码错误");
         }
 
-        // 更新密码
-        currentUser.setPassword(newPassword);
+        currentUser.setPassword(passwordEncoder.encode(rawNewPassword));
         userService.updateUser(currentUser);
 
         // 更新Session

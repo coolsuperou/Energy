@@ -1,4 +1,5 @@
 import request from './request'
+import { encryptPassword } from '@/utils/crypto'
 
 /**
  * 获取经理首页概览数据
@@ -35,7 +36,11 @@ export function getUserById(id) {
  * @param {Object} data - 用户信息
  */
 export function createUser(data) {
-  return request.post('/manager/users', data)
+  const payload = { ...data }
+  if (payload.password) {
+    payload.password = encryptPassword(payload.password)
+  }
+  return request.post('/manager/users', payload)
 }
 
 /**
@@ -44,7 +49,11 @@ export function createUser(data) {
  * @param {Object} data - 更新的用户信息
  */
 export function updateUser(id, data) {
-  return request.put(`/manager/users/${id}`, data)
+  const payload = { ...data }
+  if (payload.password) {
+    payload.password = encryptPassword(payload.password)
+  }
+  return request.put(`/manager/users/${id}`, payload)
 }
 
 /**

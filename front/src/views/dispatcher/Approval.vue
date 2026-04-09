@@ -32,13 +32,18 @@
           <div class="order-content">
             <div class="order-header">
               <div class="order-title">
-                <h6>{{ item.userName || '车间用户' }} - {{ item.purpose || '用电申请' }}</h6>
+                <h6>
+                  <span class="text-primary fw-semibold me-1">{{ workshopLabel(item.workshopId) }}</span>
+                  <span class="text-muted">·</span>
+                  {{ item.userName || '车间用户' }} - {{ item.purpose || '用电申请' }}
+                </h6>
                 <span :class="['badge', getUrgencyClass(item.urgency)]">{{ getUrgencyText(item.urgency) }}</span>
               </div>
             </div>
             <div class="order-meta">
               <span><i class="bi bi-calendar"></i>{{ item.applyDate }} {{ formatTime(item.startTime) }}-{{ formatTime(item.endTime) }}</span>
               <span><i class="bi bi-lightning-charge"></i>{{ item.power }} kW</span>
+              <span><i class="bi bi-building"></i>{{ workshopLabel(item.workshopId) }}</span>
               <span><i class="bi bi-person"></i>{{ item.userName || '未知' }}</span>
               <span><i class="bi bi-clock"></i>提交于 {{ formatCreatedAt(item.createdAt) }}</span>
             </div>
@@ -86,6 +91,9 @@
         <el-form-item label="申请编号">
           <span>{{ currentApp?.applicationNo }}</span>
         </el-form-item>
+        <el-form-item label="所属车间">
+          <span>{{ workshopLabel(currentApp?.workshopId) }}</span>
+        </el-form-item>
         <el-form-item label="申请人">
           <span>{{ currentApp?.userName }}</span>
         </el-form-item>
@@ -125,6 +133,7 @@
           <el-descriptions-item label="状态">
             <span :class="['badge', getStatusBadgeClass(detailDialog.data.status)]">{{ getStatusText(detailDialog.data.status) }}</span>
           </el-descriptions-item>
+          <el-descriptions-item label="所属车间">{{ workshopLabel(detailDialog.data.workshopId) }}</el-descriptions-item>
           <el-descriptions-item label="申请人">{{ detailDialog.data.userName || '-' }}</el-descriptions-item>
           <el-descriptions-item label="申请功率">{{ detailDialog.data.power }} kW</el-descriptions-item>
           <el-descriptions-item label="申请日期">{{ detailDialog.data.applyDate }}</el-descriptions-item>
@@ -161,6 +170,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getApplications, getPendingApplications, approveApplication, rejectApplication, adjustApplication } from '@/api/application'
 import CommentSection from '@/components/CommentSection.vue'
+import { useDispatcherNavStore } from '@/stores/dispatcherNav'
+
+const dispatcherNav = useDispatcherNavStore()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -189,13 +201,24 @@ const counts = ref({
   rejected: 0
 })
 
-// 车间列表
+// 车间列表（与后端 workshopId 1–4 及用户部门「第X车间」一致）
 const workshops = ref([
-  { id: 1, name: '生产一车间' },
-  { id: 2, name: '生产二车间' },
-  { id: 3, name: '装配车间' },
-  { id: 4, name: '仓储车间' }
+  { id: 1, name: '第一车间' },
+  { id: 2, name: '第二车间' },
+  { id: 3, name: '第三车间' },
+  { id: 4, name: '第四车间' }
 ])
+
+const CN_WORKSHOP = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+
+/** 显示第几车间，与车间端 / 调度配额一致 */
+function workshopLabel(workshopId) {
+  if (workshopId == null || workshopId === '') return '未分配车间'
+  const n = Number(workshopId)
+  if (!Number.isFinite(n)) return `车间 ${workshopId}`
+  if (n >= 1 && n <= 10) return `第${CN_WORKSHOP[n - 1]}车间`
+  return `第${n}车间`
+}
 
 // 分页
 const pagination = reactive({
@@ -352,7 +375,8 @@ async function submitApproval() {
       ElMessage.success('已拒绝，已通知申请人')
     }
     dialogVisible.value = false
-    loadApplications()
+    await loadApplications()
+    await dispatcherNav.refreshAll()
   } catch (e) {
     console.error('审批失败', e)
   }
@@ -369,7 +393,8 @@ async function batchApprove() {
     }
     
     ElMessage.success(`已批准 ${selectedIds.value.length} 个申请`)
-    loadApplications()
+    await loadApplications()
+    await dispatcherNav.refreshAll()
   } catch (e) {
     if (e !== 'cancel') {
       console.error('批量审批失败', e)

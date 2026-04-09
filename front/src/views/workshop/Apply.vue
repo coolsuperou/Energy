@@ -7,20 +7,26 @@
           <div class="quota-info">
             <h6>本月用电配额</h6>
             <div class="quota-value">
-              <span class="current">35,680</span>
-              <span class="total">/ 50,000 kWh</span>
+              <span v-if="quotaLoading" class="text-muted small">加载中…</span>
+              <template v-else>
+                <span class="current">{{ quotaDisplay.used }}</span>
+                <span class="total">/ {{ quotaDisplay.total }} kWh</span>
+              </template>
             </div>
           </div>
           <div class="quota-remain">
             <div class="label">剩余配额</div>
-            <div class="value">14,320 kWh</div>
+            <div class="value">{{ quotaLoading ? '—' : `${quotaDisplay.remaining} kWh` }}</div>
           </div>
         </div>
         <div class="quota-progress">
-          <div class="quota-progress-bar" style="width: 71.4%"></div>
+          <div
+            class="quota-progress-bar"
+            :style="{ width: quotaLoading ? '0%' : quotaDisplay.progressWidth }"
+          ></div>
         </div>
         <div class="quota-footer">
-          <span>已使用 71.4%</span>
+          <span>{{ quotaLoading ? '—' : `已使用 ${quotaDisplay.percent}%` }}</span>
           <span>本月剩余 {{ remainingDays }} 天</span>
         </div>
       </div>
@@ -235,7 +241,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getEquipments } from '@/api/equipment'
-import { submitApplication, getMyApplications, cancelApplication as cancelApplicationApi } from '@/api/application'
+import { submitApplication, getMyApplications, getMyQuota, cancelApplication as cancelApplicationApi } from '@/api/application'
 import CommentSection from '@/components/CommentSection.vue'
 
 const activeTab = ref('new')
@@ -247,6 +253,35 @@ const estEnergy = ref(0)
 const estCost = ref(0)
 
 const stats = ref({ total: 0, approved: 0, pending: 0, rejected: 0 })
+
+const quotaLoading = ref(true)
+/** 后端 GET /applications/quota/current */
+const quotaRaw = ref({
+  totalQuota: 0,
+  usedQuota: 0,
+  remainingQuota: 0,
+  usagePercent: 0,
+  yearMonth: ''
+})
+
+const quotaDisplay = computed(() => {
+  const used = Number(quotaRaw.value.usedQuota) || 0
+  const total = Number(quotaRaw.value.totalQuota) || 0
+  const remain = Number(quotaRaw.value.remainingQuota)
+  const pct = Number(quotaRaw.value.usagePercent)
+  const safeRemain = Number.isFinite(remain) ? remain : Math.max(0, total - used)
+  const safePct = Number.isFinite(pct)
+    ? pct
+    : (total > 0 ? Math.round((used / total) * 1000) / 10 : 0)
+  const barPct = Math.min(100, Math.max(0, safePct))
+  return {
+    used: Math.round(used).toLocaleString(),
+    total: Math.round(total).toLocaleString(),
+    remaining: Math.round(safeRemain).toLocaleString(),
+    percent: safePct.toFixed(1).replace(/\.0$/, ''),
+    progressWidth: `${barPct}%`
+  }
+})
 
 const remainingDays = computed(() => {
   const now = new Date()
@@ -386,6 +421,27 @@ async function loadApplications() {
   } catch (e) { console.error('加载申请失败', e) }
 }
 
+async function loadQuota() {
+  quotaLoading.value = true
+  try {
+    const res = await getMyQuota()
+    if (res.code === 200 && res.data) {
+      const d = res.data
+      quotaRaw.value = {
+        totalQuota: d.totalQuota ?? 0,
+        usedQuota: d.usedQuota ?? 0,
+        remainingQuota: d.remainingQuota ?? 0,
+        usagePercent: d.usagePercent ?? 0,
+        yearMonth: d.yearMonth ?? ''
+      }
+    }
+  } catch (e) {
+    console.error('加载配额失败', e)
+  } finally {
+    quotaLoading.value = false
+  }
+}
+
 function updateStats() {
   const list = applications.value
   stats.value = {
@@ -410,6 +466,7 @@ async function submitApply() {
       ElMessage.success('申请提交成功')
       resetForm()
       loadApplications()
+      loadQuota()
       activeTab.value = 'list'
     }
   } catch (e) { /* handled by interceptor */ }
@@ -495,6 +552,7 @@ onMounted(() => {
   form.value.endTime = String(Math.min(now.getHours() + 4, 23)).padStart(2, '0') + ':' + mm
   loadEquipments()
   loadApplications()
+  loadQuota()
 })
 </script>
 

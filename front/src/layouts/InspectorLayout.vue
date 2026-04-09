@@ -9,6 +9,10 @@
         <i class="bi bi-card-checklist"></i>
         <span>我的任务</span>
       </router-link>
+      <router-link to="/inspector/devices" class="nav-link">
+        <i class="bi bi-hdd-network"></i>
+        <span>设备管理</span>
+      </router-link>
       <router-link to="/inspector/weekly-inspection" class="nav-link">
         <i class="bi bi-clipboard2-check"></i>
         <span>每周巡检</span>

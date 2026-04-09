@@ -16,6 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.example.back.util.AESUtil;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,6 +28,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
     @Autowired
     private MinioService minioService;
 
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     public LoginResponse login(LoginRequest request) {
         User user = this.getOne(new LambdaQueryWrapper<User>()
                 .eq(User::getUsername, request.getUsername()));
@@ -33,8 +38,18 @@ public class UserService extends ServiceImpl<UserMapper, User> {
             throw new BusinessException(ErrorCode.PASSWORD_ERROR);
         }
 
-        // 开发环境：明文密码比较
-        if (!request.getPassword().equals(user.getPassword())) {
+        String rawPassword = AESUtil.decrypt(request.getPassword());
+        boolean matched;
+        if (user.getPassword().startsWith("$2a$") || user.getPassword().startsWith("$2b$")) {
+            matched = passwordEncoder.matches(rawPassword, user.getPassword());
+        } else {
+            matched = rawPassword.equals(user.getPassword());
+            if (matched) {
+                user.setPassword(passwordEncoder.encode(rawPassword));
+                this.updateById(user);
+            }
+        }
+        if (!matched) {
             throw new BusinessException(ErrorCode.PASSWORD_ERROR);
         }
 
@@ -66,8 +81,8 @@ public class UserService extends ServiceImpl<UserMapper, User> {
 
         User user = new User();
         user.setUsername(request.getUsername());
-        // 开发环境：明文存储密码
-        user.setPassword(request.getPassword());
+        String rawPassword = AESUtil.decrypt(request.getPassword());
+        user.setPassword(passwordEncoder.encode(rawPassword));
         user.setName(request.getName());
         user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());

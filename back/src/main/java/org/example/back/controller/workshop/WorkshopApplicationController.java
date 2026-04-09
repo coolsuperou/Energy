@@ -6,8 +6,10 @@ import jakarta.validation.Valid;
 import org.example.back.common.Result;
 import org.example.back.dto.ApplicationRequest;
 import org.example.back.entity.Application;
+import org.example.back.entity.Quota;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.Urgency;
+import org.example.back.service.energyData.QuotaService;
 import org.example.back.service.workshop.ApplicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -36,6 +39,30 @@ public class WorkshopApplicationController {
 
     @Autowired
     private ApplicationService applicationService;
+
+    @Autowired
+    private QuotaService quotaService;
+
+    /**
+     * 获取当前登录车间用户本月用电配额（与调度端 quotas 表一致）
+     */
+    @GetMapping("/quota/current")
+    public Result<Map<String, Object>> getMyQuota(HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (user == null) {
+            return Result.error(401, "请先登录");
+        }
+        Long workshopId = parseWorkshopIdFromDepartment(user.getDepartment(), user.getId());
+        Quota q = quotaService.getOrCreateCurrentMonthQuota(workshopId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("yearMonth", q.getYearMonth());
+        data.put("workshopId", workshopId);
+        data.put("totalQuota", q.getTotalQuota());
+        data.put("usedQuota", q.getUsedQuota());
+        data.put("remainingQuota", q.getRemainingQuota());
+        data.put("usagePercent", q.getUsagePercentage());
+        return Result.success(data);
+    }
 
     /**
      * 提交用电申请

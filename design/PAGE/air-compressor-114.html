@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>114空压机电能数据监控</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; }
+    .page-wrapper { display: flex; min-height: 100vh; }
+
+    /* 侧边栏 */
+    .sidebar {
+      width: 200px; background: linear-gradient(180deg, #1a1f36 0%, #252b48 100%);
+      color: #fff; padding: 20px 0; flex-shrink: 0;
+    }
+    .sidebar .logo { padding: 0 20px 20px; font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .sidebar .logo i { font-size: 24px; color: #4f8cff; }
+    .sidebar .nav-link {
+      color: rgba(255,255,255,0.6); padding: 12px 20px; display: flex; align-items: center; gap: 10px;
+      text-decoration: none; font-size: 14px; transition: all 0.2s;
+    }
+    .sidebar .nav-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    .sidebar .nav-link.active { color: #fff; background: #4f8cff; border-radius: 0 20px 20px 0; margin-right: 12px; }
+
+    /* 主内容 */
+    .main-content { flex: 1; padding: 24px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-header h4 { margin: 0; font-weight: 600; }
+
+    /* 统计卡片 */
+    .overview-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .overview-card {
+      background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      display: flex; align-items: center; gap: 14px;
+    }
+    .overview-icon {
+      width: 48px; height: 48px; border-radius: 12px; display: flex;
+      align-items: center; justify-content: center; font-size: 22px;
+    }
+    .overview-icon.purple { background: #f3e8ff; color: #8b5cf6; }
+    .overview-icon.green { background: #e6f7ed; color: #22c55e; }
+    .overview-icon.orange { background: #fff3e0; color: #f59e0b; }
+    .overview-value { font-size: 24px; font-weight: 700; color: #1e293b; }
+    .overview-label { font-size: 13px; color: #94a3b8; }
+
+    /* 搜索/操作区域 */
+    .search-card {
+      background: #fff; border-radius: 12px; padding: 20px; margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .search-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .search-title { font-size: 15px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .search-title i { color: #4f8cff; }
+
+    /* 模式切换 */
+    .mode-switch {
+      display: inline-flex; border: 1px solid #e2e8f0; border-radius: 20px;
+      overflow: hidden; background: #f8fafc;
+    }
+    .mode-btn {
+      border: none; padding: 7px 18px; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; display: flex; align-items: center;
+      gap: 6px; color: #64748b; background: transparent;
+    }
+    .mode-btn.active { background: #4f8cff; color: #fff; border-radius: 20px; }
+    .mode-btn:not(.active):hover { color: #4f8cff; background: #e8f0fe; }
+
+    /* 表单控件 */
+    .form-label-sm { color: #64748b; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .time-combo {
+      display: flex; border: 1px solid #e2e8f0; border-radius: 8px;
+      overflow: hidden; background: #f8fafc; height: 36px; transition: all 0.2s;
+    }
+    .time-combo:focus-within { border-color: #4f8cff; box-shadow: 0 0 0 3px rgba(79,140,255,0.12); }
+    .time-combo input, .time-combo select {
+      border: none; background: transparent; color: #1e293b;
+      padding: 4px 10px; font-size: 13px; outline: none;
+    }
+    .time-combo .combo-sep { width: 1px; background: #e2e8f0; align-self: stretch; }
+
+    /* 按钮 */
+    .btn-search { background: #4f8cff; color: #fff; border: none; font-weight: 600; font-size: 13px; padding: 7px 20px; border-radius: 8px; }
+    .btn-search:hover { background: #3b7be0; color: #fff; }
+    .btn-reset { background: #fff; color: #64748b; border: 1px solid #e2e8f0; font-size: 13px; padding: 7px 20px; border-radius: 8px; }
+    .btn-reset:hover { border-color: #4f8cff; color: #4f8cff; }
+    .btn-toggle { background: #fff; color: #4f8cff; border: 1px solid #4f8cff; font-size: 13px; padding: 7px 20px; border-radius: 8px; }
+    .btn-toggle:hover { background: #e8f0fe; }
+
+    /* 图表区域 */
+    .chart-card {
+      background: #fff; border-radius: 12px; margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+    }
+    .chart-card-header {
+      padding: 16px 20px; display: flex; justify-content: space-between;
+      align-items: center; border-bottom: 1px solid #f1f5f9;
+    }
+    .chart-card-title { font-size: 15px; font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .chart-card-title i { color: #4f8cff; }
+    .chart-badge {
+      font-size: 12px; font-weight: 600; color: #22c55e;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chart-badge::before {
+      content: ''; width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e; animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+    .chart-area { height: 380px; padding: 20px; }
+
+    /* 数据表格 */
+    .table-card {
+      background: #fff; border-radius: 12px; margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+    }
+    .table-card-header {
+      padding: 16px 20px; display: flex; justify-content: space-between;
+      align-items: center; border-bottom: 1px solid #f1f5f9;
+    }
+    .table-card-title { font-size: 15px; font-weight: 600; color: #1e293b; }
+    .table-tools { display: flex; gap: 6px; }
+    .tool-btn {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;
+      color: #94a3b8; cursor: pointer; transition: all 0.2s; font-size: 14px;
+    }
+    .tool-btn:hover { border-color: #4f8cff; color: #4f8cff; background: #e8f0fe; }
+
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+    .data-table thead th {
+      background: #f8fafc; color: #64748b; font-weight: 600; font-size: 13px;
+      padding: 12px 16px; border-bottom: 1px solid #e2e8f0; text-align: left; white-space: nowrap;
+    }
+    .data-table tbody td {
+      padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: middle;
+    }
+    .data-table tbody tr:hover td { background: #f8fafc; }
+    .td-device { font-family: 'SF Mono','Fira Code',monospace; font-size: 13px; color: #64748b; }
+    .td-workshop { color: #8b5cf6; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+    .td-workshop::before { content:''; width:7px; height:7px; border-radius:50%; background:#8b5cf6; flex-shrink:0; }
+    .td-name { color: #4f8cff; font-weight: 500; }
+    .td-name i { margin-right: 4px; }
+    .td-energy { color: #f59e0b; font-weight: 700; }
+    .td-time { color: #94a3b8; font-size: 13px; }
+
+    /* 分页 */
+    .table-pagination {
+      padding: 14px 20px; display: flex; justify-content: space-between;
+      align-items: center; border-top: 1px solid #f1f5f9;
+    }
+    .page-info { color: #94a3b8; font-size: 13px; }
+    .page-btns { display: flex; gap: 4px; }
+    .page-btn {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; border: 1px solid #e2e8f0; background: #fff;
+      color: #64748b; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    .page-btn:hover { border-color: #4f8cff; color: #4f8cff; }
+    .page-btn.active { background: #4f8cff; border-color: #4f8cff; color: #fff; font-weight: 600; }
+
+    @media (max-width: 992px) {
+      .overview-cards { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+    @media (max-width: 768px) {
+      .chart-area { height: 280px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrapper">
+  <!-- 侧边栏 -->
+  <div class="sidebar">
+    <div class="logo"><i class="bi bi-lightning-charge-fill"></i> 电能监控平台</div>
+    <a href="#" class="nav-link"><i class="bi bi-speedometer2"></i><span>数据总览</span></a>
+    <a href="#" class="nav-link active"><i class="bi bi-cpu"></i><span>114空压机</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-gear"></i><span>105烧结</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-droplet"></i><span>106清洗</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-box"></i><span>110注射</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-building"></i><span>办公楼</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-clipboard-check"></i><span>每日巡检</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-cash-stack"></i><span>电费分摊</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-bar-chart-line"></i><span>月度报表</span></a>
+    <a href="#" class="nav-link"><i class="bi bi-person"></i><span>个人中心</span></a>
+  </div>
+
+  <!-- 主内容 -->
+  <div class="main-content">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div>
+        <h4><i class="bi bi-lightning-charge-fill me-2" style="color:#4f8cff"></i>114空压机电能数据监控</h4>
+        <span class="text-muted" style="font-size:13px;">实时监控 · 数据分析</span>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="overview-cards">
+      <div class="overview-card">
+        <div class="overview-icon purple"><i class="bi bi-building"></i></div>
+        <div>
+          <div class="overview-value" style="font-size:18px;color:#8b5cf6;">114空压机</div>
+          <div class="overview-label">车间</div>
+        </div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-icon green"><i class="bi bi-speedometer2"></i></div>
+        <div>
+          <div class="overview-value">1,258.46 <span style="font-size:14px;color:#94a3b8;font-weight:500;">kWh</span></div>
+          <div class="overview-label">电能消耗</div>
+        </div>
+      </div>
+      <div class="overview-card">
+        <div class="overview-icon orange"><i class="bi bi-lightning-fill"></i></div>
+        <div>
+          <div class="overview-value">85,432.10 <span style="font-size:14px;color:#94a3b8;font-weight:500;">kWh</span></div>
+          <div class="overview-label">总电能消耗</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 搜索/操作区域 -->
+    <div class="search-card">
+      <div class="search-header">
+        <div class="search-title"><i class="bi bi-eye-fill"></i> 实时监控数据</div>
+        <div class="mode-switch">
+          <button class="mode-btn active" id="btnHour"><i class="bi bi-clock"></i> 小时模式</button>
+          <button class="mode-btn" id="btnDay"><i class="bi bi-calendar3"></i> 日模式</button>
+        </div>
+      </div>
+
+      <!-- 小时模式表单 -->
+      <div class="d-flex align-items-center gap-3 flex-wrap" id="hourForm">
+        <div class="d-flex align-items-center gap-2">
+          <span class="form-label-sm">开始时间:</span>
+          <div class="time-combo">
+            <input type="date" value="2026-03-04" style="width:140px">
+            <div class="combo-sep"></div>
+            <select style="width:90px">
+              <option>06时</option><option>07时</option><option selected>08时</option>
+              <option>09时</option><option>10时</option><option>11时</option><option>12时</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="form-label-sm">结束时间:</span>
+          <div class="time-combo">
+            <input type="date" value="2026-03-05" style="width:140px">
+            <div class="combo-sep"></div>
+            <select style="width:90px">
+              <option>06时</option><option>07时</option><option selected>08时</option>
+              <option>09时</option><option>10时</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-search"><i class="bi bi-search me-1"></i>查询</button>
+          <button class="btn btn-reset"><i class="bi bi-arrow-counterclockwise me-1"></i>重置</button>
+          <button class="btn btn-toggle" id="toggleChart"><i class="bi bi-chevron-up me-1"></i>折叠</button>
+        </div>
+      </div>
+
+      <!-- 日模式表单 -->
+      <div class="d-none align-items-center gap-3 flex-wrap" id="dayForm">
+        <div class="d-flex align-items-center gap-2">
+          <span class="form-label-sm">开始日期:</span>
+          <div class="time-combo"><input type="date" value="2026-02-26" style="width:150px"></div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="form-label-sm">结束日期:</span>
+          <div class="time-combo"><input type="date" value="2026-03-05" style="width:150px"></div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-search"><i class="bi bi-search me-1"></i>查询</button>
+          <button class="btn btn-reset"><i class="bi bi-arrow-counterclockwise me-1"></i>重置</button>
+          <button class="btn btn-toggle"><i class="bi bi-chevron-up me-1"></i>折叠</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="chart-card" id="chartCard">
+      <div class="chart-card-header">
+        <div class="chart-card-title"><i class="bi bi-bar-chart-line-fill"></i> 114空压机 实时电能监控</div>
+        <div class="chart-badge">实时更新中</div>
+      </div>
+      <div class="chart-area">
+        <canvas id="powerChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 数据表格 -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">数据列表</div>
+        <div class="table-tools">
+          <button class="tool-btn" title="刷新"><i class="bi bi-arrow-clockwise"></i></button>
+          <button class="tool-btn" title="密度"><i class="bi bi-list"></i></button>
+          <button class="tool-btn" title="全屏"><i class="bi bi-arrows-fullscreen"></i></button>
+          <button class="tool-btn" title="设置"><i class="bi bi-gear"></i></button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>设备ID</th><th>部门车间</th><th>名称</th><th>电能度数</th><th>时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,845.32</td>
+              <td class="td-time">03-05 08:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,832.18</td>
+              <td class="td-time">03-05 07:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,819.76</td>
+              <td class="td-time">03-05 06:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,806.44</td>
+              <td class="td-time">03-05 05:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,793.90</td>
+              <td class="td-time">03-05 04:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,781.55</td>
+              <td class="td-time">03-05 03:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,768.20</td>
+              <td class="td-time">03-05 02:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,755.88</td>
+              <td class="td-time">03-05 01:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,742.10</td>
+              <td class="td-time">03-05 00:05</td>
+            </tr>
+            <tr>
+              <td class="td-device">DEV-114-001</td>
+              <td><span class="td-workshop">114空压机</span></td>
+              <td class="td-name"><i class="bi bi-database"></i>空压机#1</td>
+              <td class="td-energy">12,729.64</td>
+              <td class="td-time">03-04 23:05</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-pagination">
+        <div class="page-info">共 5 页，96 条数据</div>
+        <div class="page-btns">
+          <button class="page-btn"><i class="bi bi-chevron-left"></i></button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">4</button>
+          <button class="page-btn">5</button>
+          <button class="page-btn"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+  // 模式切换
+  const btnHour = document.getElementById('btnHour');
+  const btnDay = document.getElementById('btnDay');
+  const hourForm = document.getElementById('hourForm');
+  const dayForm = document.getElementById('dayForm');
+
+  btnHour.addEventListener('click', () => {
+    btnHour.classList.add('active');
+    btnDay.classList.remove('active');
+    hourForm.classList.remove('d-none');
+    hourForm.classList.add('d-flex');
+    dayForm.classList.add('d-none');
+    dayForm.classList.remove('d-flex');
+  });
+  btnDay.addEventListener('click', () => {
+    btnDay.classList.add('active');
+    btnHour.classList.remove('active');
+    dayForm.classList.remove('d-none');
+    dayForm.classList.add('d-flex');
+    hourForm.classList.add('d-none');
+    hourForm.classList.remove('d-flex');
+  });
+
+  // 折叠图表
+  document.getElementById('toggleChart').addEventListener('click', function() {
+    const card = document.getElementById('chartCard');
+    if (card.style.display === 'none') {
+      card.style.display = '';
+      this.innerHTML = '<i class="bi bi-chevron-up me-1"></i>折叠';
+    } else {
+      card.style.display = 'none';
+      this.innerHTML = '<i class="bi bi-chevron-down me-1"></i>展开';
+    }
+  });
+
+  // 侧边栏导航切换
+  document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // 电能趋势图
+  const ctx = document.getElementById('powerChart').getContext('2d');
+  const hours = [];
+  const values = [];
+  for (let i = 8; i <= 31; i++) {
+    const h = i % 24;
+    const d = i >= 24 ? '03-05' : '03-04';
+    hours.push(d + ' ' + String(h).padStart(2, '0') + ':00');
+    values.push(+(8 + Math.random() * 18).toFixed(2));
+  }
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: hours,
+      datasets: [{
+        label: '114空压机',
+        data: values,
+        borderColor: '#4f8cff',
+        backgroundColor: 'rgba(79, 140, 255, 0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#4f8cff',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.35
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#64748b',
+            font: { size: 13, weight: '600' },
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#fff',
+          titleColor: '#1e293b',
+          bodyColor: '#64748b',
+          borderColor: '#e2e8f0',
+          borderWidth: 1,
+          cornerRadius: 8,
+          padding: 12,
+          titleFont: { size: 13, weight: '700' },
+          bodyFont: { size: 13 },
+          callbacks: {
+            label: function(ctx) {
+              return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + ' kWh';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#f1f5f9', drawBorder: false },
+          ticks: {
+            color: '#94a3b8',
+            font: { size: 11 },
+            maxRotation: 45,
+            callback: function(val, idx) {
+              const label = this.getLabelForValue(val);
+              return label.split(' ')[1];
+            }
+          }
+        },
+        y: {
+          title: {
+            display: true,
+            text: '每小时用电量 (kWh)',
+            color: '#94a3b8',
+            font: { size: 12, weight: '600' }
+          },
+          grid: { color: '#f1f5f9', drawBorder: false },
+          ticks: { color: '#94a3b8', font: { size: 11 } },
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>

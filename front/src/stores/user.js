@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { login, logout, getCurrentUser } from '@/api/auth'
+import { encryptPassword } from '@/utils/crypto'
 
 export const useUserStore = defineStore('user', () => {
   const user = ref(null)
@@ -28,7 +29,7 @@ export const useUserStore = defineStore('user', () => {
   })
 
   async function doLogin(username, password) {
-    const res = await login({ username, password })
+    const res = await login({ username, password: encryptPassword(password) })
     if (res.code === 200) {
       user.value = res.data
       localStorage.setItem('user', JSON.stringify(res.data))

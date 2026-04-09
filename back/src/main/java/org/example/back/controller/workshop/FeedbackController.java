@@ -113,7 +113,7 @@ public class FeedbackController {
 
     /**
      * 上传反馈图片（支持多图上传）
-     * 图片URL存入feedbacks表的images字段，逗号分隔
+     * feedbacks.images 字段保存稳定文件路径，查询时再动态转换为可访问地址
      */
     @PostMapping("/{id}/images")
     public Result<List<Map<String, String>>> uploadImages(
@@ -133,30 +133,24 @@ public class FeedbackController {
             return Result.error(403, "无权为此反馈上传图片");
         }
         
-        List<String> urls = new ArrayList<>();
+        List<String> imagePaths = new ArrayList<>();
         for (MultipartFile file : files) {
             if (!file.isEmpty()) {
                 String path = minioService.uploadFile(file, user.getId(), MinioService.FileType.FEEDBACK);
-                String fullUrl = minioService.getFileUrl(path);
-                urls.add(fullUrl);
+                imagePaths.add(path);
             }
         }
         
         // 合并已有图片
         String existing = feedback.getImages();
         if (existing != null && !existing.isEmpty()) {
-            urls.addAll(0, Arrays.asList(existing.split(",")));
+            imagePaths.addAll(0, Arrays.asList(existing.split(",")));
         }
-        feedback.setImages(String.join(",", urls));
+        feedback.setImages(String.join(",", imagePaths));
         feedbackService.updateById(feedback);
         
         // 返回兼容旧格式
-        List<Map<String, String>> result = urls.stream().map(url -> {
-            Map<String, String> m = new HashMap<>();
-            m.put("imageUrl", url);
-            m.put("accessUrl", url);
-            return m;
-        }).collect(Collectors.toList());
+        List<Map<String, String>> result = imagePaths.stream().map(this::buildImageResponse).collect(Collectors.toList());
         
         return Result.success(result);
     }
@@ -174,14 +168,24 @@ public class FeedbackController {
         List<Map<String, String>> result = new ArrayList<>();
         String images = feedback.getImages();
         if (images != null && !images.isEmpty()) {
-            for (String url : images.split(",")) {
-                Map<String, String> m = new HashMap<>();
-                m.put("imageUrl", url);
-                m.put("accessUrl", url);
-                result.add(m);
+            for (String imagePath : images.split(",")) {
+                result.add(buildImageResponse(imagePath));
             }
         }
         return Result.success(result);
+    }
+
+    private Map<String, String> buildImageResponse(String storedValue) {
+        String trimmedValue = storedValue == null ? "" : storedValue.trim();
+        String accessUrl = trimmedValue;
+        if (!trimmedValue.isEmpty() && !trimmedValue.startsWith("http://") && !trimmedValue.startsWith("https://")) {
+            accessUrl = minioService.getFileUrl(trimmedValue);
+        }
+
+        Map<String, String> m = new HashMap<>();
+        m.put("imageUrl", trimmedValue);
+        m.put("accessUrl", accessUrl);
+        return m;
     }
 
     /**

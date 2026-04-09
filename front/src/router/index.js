@@ -50,6 +50,7 @@ const routes = [
     meta: { requiresAuth: true, role: 'inspector' },
     children: [
       { path: '', name: 'InspectorHome', component: () => import('@/views/inspector/Index.vue') },
+      { path: 'devices', name: 'InspectorDevices', component: () => import('@/views/inspector/DeviceManagement.vue') },
       { path: 'equipment', name: 'Equipment', component: () => import('@/views/inspector/Equipment.vue') },
       { path: 'inspection', name: 'Inspection', component: () => import('@/views/inspector/Inspection.vue') },
       { path: 'weekly-inspection', name: 'WeeklyInspection', component: () => import('@/views/inspector/Inspection.vue') },

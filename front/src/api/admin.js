@@ -1,4 +1,5 @@
 import request from './request'
+import { encryptPassword } from '@/utils/crypto'
 
 /**
  * 获取管理员首页概览数据
@@ -35,7 +36,11 @@ export function getUserById(id) {
  * @param {Object} data - 用户信息
  */
 export function createUser(data) {
-  return request.post('/admin/users', data)
+  const payload = { ...data }
+  if (payload.password) {
+    payload.password = encryptPassword(payload.password)
+  }
+  return request.post('/admin/users', payload)
 }
 
 /**
@@ -44,7 +49,11 @@ export function createUser(data) {
  * @param {Object} data - 更新的用户信息
  */
 export function updateUser(id, data) {
-  return request.put(`/admin/users/${id}`, data)
+  const payload = { ...data }
+  if (payload.password) {
+    payload.password = encryptPassword(payload.password)
+  }
+  return request.put(`/admin/users/${id}`, payload)
 }
 
 /**
@@ -70,7 +79,7 @@ export function updateUserStatus(id, status) {
  * @param {string} password - 新密码
  */
 export function resetPassword(id, password) {
-  return request.put(`/admin/users/${id}/reset-password`, { password })
+  return request.put(`/admin/users/${id}/reset-password`, { password: encryptPassword(password) })
 }
 
 // ==================== 系统配置接口 ====================

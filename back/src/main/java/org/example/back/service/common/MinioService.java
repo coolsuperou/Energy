@@ -83,11 +83,17 @@ public class MinioService {
     
     /**
      * 上传文件到 MinIO（指定文件类型）
-     * 
+     *
+     * 对象路径格式：
+     * avatar/{userId}/{filename}
+     * feedback/{userId}/{filename}
+     * report/{userId}/{filename}
+     * certificate/{userId}/{filename}
+     *
      * @param file 上传的文件
      * @param userId 用户ID,用于生成唯一文件名
      * @param fileType 文件类型
-     * @return 文件访问路径
+     * @return 对象相对路径
      */
     public String uploadFile(MultipartFile file, Long userId, FileType fileType) {
         // 验证文件
@@ -97,25 +103,27 @@ public class MinioService {
             // 1. 确保 bucket 存在
             ensureBucketExists();
             
-            // 2. 生成唯一文件名: type_userId_timestamp.扩展名
+            // 2. 生成真正唯一文件名，避免同一毫秒多图上传时发生覆盖
             String originalFilename = file.getOriginalFilename();
             String extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-            String fileName = fileType.getPrefix() + "_" + userId + "_" + System.currentTimeMillis() + extension;
+            String fileName = fileType.getPrefix() + "_" + userId + "_" + System.currentTimeMillis()
+                    + "_" + UUID.randomUUID().toString().replace("-", "") + extension;
+            String objectPath = fileType.getPrefix() + "/" + userId + "/" + fileName;
             
             // 3. 上传文件
             minioClient.putObject(
                 PutObjectArgs.builder()
                     .bucket(minioProperties.getBucketName())
-                    .object(fileName)
+                    .object(objectPath)
                     .stream(file.getInputStream(), file.getSize(), -1)
                     .contentType(file.getContentType())
                     .build()
             );
             
-            log.info("文件上传成功: type={}, fileName={}", fileType, fileName);
+            log.info("文件上传成功: type={}, objectPath={}", fileType, objectPath);
             
-            // 4. 返回文件访问路径
-            return "/" + minioProperties.getBucketName() + "/" + fileName;
+            // 4. 返回对象相对路径
+            return objectPath;
             
         } catch (BusinessException e) {
             throw e;
@@ -202,7 +210,10 @@ public class MinioService {
     /**
      * 删除文件
      * 
-     * @param filePath 文件路径,格式: /bucket/filename
+     * @param filePath 文件路径，兼容以下格式：
+     *                 avatar/1/a.jpg
+     *                 /avatars/avatar/1/a.jpg
+     *                 http(s)://.../avatars/avatar/1/a.jpg?...
      */
     public void deleteFile(String filePath) {
         if (filePath == null || filePath.isEmpty()) {
@@ -210,17 +221,16 @@ public class MinioService {
         }
         
         try {
-            // 从路径中提取文件名: /avatars/123_1234567890.jpg -> 123_1234567890.jpg
-            String fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+            String objectName = normalizeObjectPath(filePath);
             
             minioClient.removeObject(
                 RemoveObjectArgs.builder()
                     .bucket(minioProperties.getBucketName())
-                    .object(fileName)
+                    .object(objectName)
                     .build()
             );
             
-            log.info("文件删除成功: {}", fileName);
+            log.info("文件删除成功: {}", objectName);
             
         } catch (Exception e) {
             log.error("文件删除失败", e);
@@ -232,7 +242,7 @@ public class MinioService {
      * 获取文件访问 URL
      * 使用预签名URL,有效期7天
      * 
-     * @param filePath 文件路径
+     * @param filePath 文件路径，兼容相对路径、旧的 /bucket/... 路径和完整 URL
      * @return 完整的访问 URL
      */
     public String getFileUrl(String filePath) {
@@ -241,15 +251,14 @@ public class MinioService {
         }
         
         try {
-            // 从路径中提取文件名
-            String fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+            String objectName = normalizeObjectPath(filePath);
             
             // 生成预签名URL,有效期7天
             String url = minioClient.getPresignedObjectUrl(
                 GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(minioProperties.getBucketName())
-                    .object(fileName)
+                    .object(objectName)
                     .expiry(7, java.util.concurrent.TimeUnit.DAYS)
                     .build()
             );
@@ -259,8 +268,30 @@ public class MinioService {
             log.error("获取文件URL失败", e);
             // 降级方案:返回直接访问URL
             String webEndpoint = minioProperties.getEndpoint().replace("9090", "9000");
-            return webEndpoint + filePath;
+            String objectName = normalizeObjectPath(filePath);
+            return webEndpoint + "/" + minioProperties.getBucketName() + "/" + objectName;
         }
+    }
+
+    private String normalizeObjectPath(String filePath) {
+        String normalized = filePath.trim();
+
+        int queryIndex = normalized.indexOf("?");
+        if (queryIndex >= 0) {
+            normalized = normalized.substring(0, queryIndex);
+        }
+
+        String bucketPrefix = "/" + minioProperties.getBucketName() + "/";
+        int bucketIndex = normalized.indexOf(bucketPrefix);
+        if (bucketIndex >= 0) {
+            return normalized.substring(bucketIndex + bucketPrefix.length());
+        }
+
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+
+        return normalized;
     }
     
     /**

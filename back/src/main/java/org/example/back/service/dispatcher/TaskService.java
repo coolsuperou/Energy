@@ -9,12 +9,15 @@ import org.example.back.entity.enums.TaskStatus;
 import org.example.back.entity.enums.TaskType;
 import org.example.back.mapper.dispatcher.TaskMapper;
 import org.example.back.mapper.common.UserMapper;
+import org.example.back.service.common.MinioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 工单服务类
@@ -28,6 +31,9 @@ public class TaskService {
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private MinioService minioService;
 
     /**
      * 分页查询工单列表
@@ -204,5 +210,17 @@ public class TaskService {
         
         // 设备名称可以通过 equipmentId 查询，这里简化处理
         // 实际项目中可以添加 EquipmentMapper 查询
+
+        // 将 reportImages 中存储的相对路径转换为可访问的带签名 URL
+        if (task.getReportImages() != null && !task.getReportImages().isEmpty()) {
+            String converted = Arrays.stream(task.getReportImages().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(path -> (path.startsWith("http://") || path.startsWith("https://"))
+                            ? path
+                            : minioService.getFileUrl(path))
+                    .collect(Collectors.joining(","));
+            task.setReportImages(converted);
+        }
     }
 }

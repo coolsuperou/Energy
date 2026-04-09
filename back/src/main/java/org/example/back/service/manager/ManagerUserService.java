@@ -18,6 +18,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.example.back.util.AESUtil;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -89,7 +90,8 @@ public class ManagerUserService {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
         
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        String rawPassword = AESUtil.decrypt(user.getPassword());
+        user.setPassword(passwordEncoder.encode(rawPassword));
         if (user.getStatus() == null) {
             user.setStatus(UserStatus.ACTIVE);
         }
@@ -136,7 +138,8 @@ public class ManagerUserService {
             existingUser.setStatus(user.getStatus());
         }
         if (StringUtils.hasText(user.getPassword())) {
-            existingUser.setPassword(passwordEncoder.encode(user.getPassword()));
+            String rawPassword = AESUtil.decrypt(user.getPassword());
+            existingUser.setPassword(passwordEncoder.encode(rawPassword));
         }
         
         existingUser.setUpdatedAt(LocalDateTime.now());

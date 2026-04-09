@@ -5,10 +5,7 @@
       <div class="stat-card" @click="goTo('/dispatcher/approval')">
         <div class="stat-icon orange"><i class="bi bi-clipboard-check"></i></div>
         <div class="stat-info">
-          <div class="stat-value">
-            {{ stats.pendingApplicationCount }}
-            <el-badge v-if="stats.pendingApplicationCount > 0" :value="stats.pendingApplicationCount" class="stat-badge" />
-          </div>
+          <div class="stat-value">{{ stats.pendingApplicationCount }}</div>
           <div class="stat-label">待审批申请</div>
         </div>
       </div>
@@ -101,10 +98,15 @@
                :class="['order-card', { urgent: item.urgency === 'CRITICAL' || item.urgency === 'critical' }]">
             <div class="order-header">
               <div class="order-info">
-                <h6>{{ item.userName || '车间用户' }} - {{ item.purpose || '用电申请' }}</h6>
+                <h6>
+                  <span class="text-primary fw-semibold me-1">{{ workshopLabel(item.workshopId) }}</span>
+                  <span class="text-muted">·</span>
+                  {{ item.userName || '车间用户' }} - {{ item.purpose || '用电申请' }}
+                </h6>
                 <div class="order-meta">
                   <span><i class="bi bi-calendar"></i>{{ item.applyDate }} {{ formatTime(item.startTime) }}-{{ formatTime(item.endTime) }}</span>
                   <span><i class="bi bi-lightning-charge"></i>{{ item.power }} kW</span>
+                  <span><i class="bi bi-building"></i>{{ workshopLabel(item.workshopId) }}</span>
                 </div>
               </div>
               <span :class="['badge', getUrgencyClass(item.urgency)]">{{ getUrgencyText(item.urgency) }}</span>
@@ -134,8 +136,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getDashboard } from '@/api/dispatcher'
 import { getPendingApplications, approveApplication, rejectApplication } from '@/api/application'
+import { useDispatcherNavStore } from '@/stores/dispatcherNav'
 
 const router = useRouter()
+const dispatcherNav = useDispatcherNavStore()
 const loading = ref(false)
 const currentTime = ref('')
 
@@ -163,6 +167,16 @@ function formatNumber(num) {
   const n = parseFloat(num)
   if (isNaN(n)) return '0'
   return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+const CN_WORKSHOP = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+
+function workshopLabel(workshopId) {
+  if (workshopId == null || workshopId === '') return '未分配车间'
+  const n = Number(workshopId)
+  if (!Number.isFinite(n)) return `车间 ${workshopId}`
+  if (n >= 1 && n <= 10) return `第${CN_WORKSHOP[n - 1]}车间`
+  return `第${n}车间`
 }
 
 // 格式化时间
@@ -257,6 +271,7 @@ async function handleApprove(id) {
       ElMessage.success('审批成功，已通知申请人')
       loadDashboard()
       loadPendingApplications()
+      await dispatcherNav.refreshAll()
     }
   } catch (e) {
     if (e !== 'cancel') {
@@ -277,6 +292,7 @@ async function handleReject(id) {
       ElMessage.success('已拒绝，已通知申请人')
       loadDashboard()
       loadPendingApplications()
+      await dispatcherNav.refreshAll()
     }
   } catch (e) {
     if (e !== 'cancel') {
@@ -418,7 +434,7 @@ onMounted(() => {
   }
 }
 
-// 统计卡片 badge 样式
+// 统计卡片悬停
 .stat-card {
   cursor: pointer;
   transition: all 0.2s;
@@ -426,16 +442,6 @@ onMounted(() => {
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  .stat-value {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  .stat-badge {
-    margin-left: 0.25rem;
   }
 }
 </style>

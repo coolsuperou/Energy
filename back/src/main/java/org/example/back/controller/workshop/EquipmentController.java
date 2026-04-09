@@ -1,20 +1,24 @@
 package org.example.back.controller.workshop;
 
+import jakarta.servlet.http.HttpSession;
+import jakarta.validation.Valid;
 import org.example.back.common.Result;
+import org.example.back.dto.EquipmentRequest;
 import org.example.back.entity.Equipment;
 import org.example.back.entity.User;
 import org.example.back.entity.enums.UserRole;
 import org.example.back.service.common.EquipmentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpSession;
 import java.util.List;
 
 /**
  * 设备管理控制器
- * 提供设备信息的查询接口
- * 用于车间用电申请时选择设备以及巡检员查看设备状态
+ * 查询：车间用户仅本车间；巡检员/调度等可查全部或按车间筛选。
+ * 增删改：巡检员、调度员、经理、管理员；车间用户不可改。
  */
 @RestController
 @RequestMapping("/equipments")
@@ -37,7 +41,7 @@ public class EquipmentController {
                 workshopId = parseWorkshopIdFromDepartment(user.getDepartment());
             }
         }
-        
+
         List<Equipment> list;
         if (workshopId != null) {
             list = equipmentService.getByWorkshopId(workshopId);
@@ -58,7 +62,58 @@ public class EquipmentController {
         }
         return Result.success(equipment);
     }
-    
+
+    /**
+     * 新增设备（POST /equipments/create，JSON）。
+     */
+    @PostMapping(value = "/create", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Result<Equipment> create(@Valid @RequestBody EquipmentRequest request, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (!canManageEquipment(user)) {
+            return Result.error(403, "无权限创建设备");
+        }
+        Equipment created = equipmentService.create(request);
+        return Result.success(created);
+    }
+
+    @PutMapping("/{id}")
+    public Result<Equipment> update(@PathVariable Long id, @Valid @RequestBody EquipmentRequest request, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (!canManageEquipment(user)) {
+            return Result.error(403, "无权限修改设备");
+        }
+        Equipment updated = equipmentService.update(id, request);
+        if (updated == null) {
+            return Result.error(404, "设备不存在");
+        }
+        return Result.success(updated);
+    }
+
+    @DeleteMapping("/{id}")
+    public Result<Void> delete(@PathVariable Long id, HttpSession session) {
+        User user = (User) session.getAttribute("user");
+        if (!canManageEquipment(user)) {
+            return Result.error(403, "无权限删除设备");
+        }
+        if (equipmentService.getById(id) == null) {
+            return Result.error(404, "设备不存在");
+        }
+        try {
+            equipmentService.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            return Result.error(409, "该设备仍被用电申请、工单或其他数据引用，无法删除");
+        }
+        return Result.success(null);
+    }
+
+    private static boolean canManageEquipment(User user) {
+        if (user == null || user.getRole() == null) {
+            return false;
+        }
+        UserRole r = user.getRole();
+        return r == UserRole.INSPECTOR || r == UserRole.ADMIN || r == UserRole.DISPATCHER || r == UserRole.MANAGER;
+    }
+
     /**
      * 从部门名称解析车间ID
      */
