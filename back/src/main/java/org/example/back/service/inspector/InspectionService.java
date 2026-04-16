@@ -128,8 +128,57 @@ public class InspectionService {
         record.setCheckedAt(LocalDateTime.now());
         recordMapper.updateById(record);
 
+        // 做法B：按本计划该设备全部检查项汇总，回写设备台账状态，与设备管理页一致
+        syncEquipmentStatusFromInspectionRecords(record.getPlanId(), record.getEquipmentId());
+
         // 检查该计划是否全部完成（所有记录都有结果且无异常/故障）
         checkAndCompletePlan(record.getPlanId());
+    }
+
+    /**
+     * 根据某计划下某台设备的所有巡检记录，汇总回写 {@link Equipment#getStatus()}。
+     * <ul>
+     *   <li>任一项为 fault → 故障</li>
+     *   <li>无 fault 但任一项为 abnormal → 维护中（WARNING）</li>
+     *   <li>五项均已填且均为 normal → 正常</li>
+     *   <li>仍有未填项且无 fault/abnormal → 不改设备状态（避免只填部分「全正常」误清维护中）</li>
+     *   <li>已转报修（repaired）的记录不参与汇总，且不覆盖（由转报修流程写故障）</li>
+     * </ul>
+     */
+    private void syncEquipmentStatusFromInspectionRecords(Long planId, Long equipmentId) {
+        LambdaQueryWrapper<InspectionRecord> w = new LambdaQueryWrapper<>();
+        w.eq(InspectionRecord::getPlanId, planId).eq(InspectionRecord::getEquipmentId, equipmentId);
+        List<InspectionRecord> list = recordMapper.selectList(w);
+        if (list.isEmpty()) {
+            return;
+        }
+        if (list.stream().anyMatch(r -> Boolean.TRUE.equals(r.getRepaired()))) {
+            return;
+        }
+        boolean anyFault = list.stream().anyMatch(r -> "fault".equals(r.getResult()));
+        boolean anyAbnormal = list.stream().anyMatch(r -> "abnormal".equals(r.getResult()));
+        boolean allHaveResult = list.stream().allMatch(r -> r.getResult() != null);
+
+        EquipmentStatus newStatus = null;
+        if (anyFault) {
+            newStatus = EquipmentStatus.FAULT;
+        } else if (anyAbnormal) {
+            newStatus = EquipmentStatus.WARNING;
+        } else if (allHaveResult) {
+            newStatus = EquipmentStatus.NORMAL;
+        }
+        if (newStatus == null) {
+            return;
+        }
+        Equipment equipment = equipmentMapper.selectById(equipmentId);
+        if (equipment == null) {
+            return;
+        }
+        if (equipment.getStatus() == newStatus) {
+            return;
+        }
+        equipment.setStatus(newStatus);
+        equipmentMapper.updateById(equipment);
     }
 
     /**

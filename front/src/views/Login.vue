@@ -11,8 +11,8 @@
       <div class="login-card">
         <div class="header-section">
           <div class="logo-icon">⚡</div>
-          <h1 class="main-title">智能电能监控平台</h1>
-          <p class="subtitle">Smart Energy Monitoring Platform</p>
+          <h1 class="main-title">企业电能管理平台</h1>
+          <p class="subtitle">Enterprise Electricity Management Platform</p>
         </div>
 
         <!-- 错误提示 -->
@@ -60,7 +60,10 @@
     <div class="modal-overlay" v-if="showRegister" @click.self="showRegister = false">
       <div class="register-card">
         <div class="modal-header">
-          <h3>注册账号</h3>
+          <div>
+            <h3>注册账号</h3>
+            <p class="register-brand">企业电能管理平台</p>
+          </div>
           <button class="close-btn" @click="showRegister = false">&times;</button>
         </div>
         <div class="success-message" v-if="regSuccess">
@@ -553,8 +556,9 @@ onUnmounted(() => {
 .modal-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 28px;
+  gap: 12px;
 
   h3 {
     color: #00d4ff;
@@ -562,6 +566,18 @@ onUnmounted(() => {
     font-weight: 600;
     margin: 0;
   }
+
+  .register-brand {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.55);
+    font-weight: 400;
+  }
+}
+
+.modal-header .close-btn {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .close-btn {

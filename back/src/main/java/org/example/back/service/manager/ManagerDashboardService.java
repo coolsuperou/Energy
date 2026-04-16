@@ -40,13 +40,13 @@ public class ManagerDashboardService {
     @Autowired
     private SkillCertificationMapper skillCertificationMapper;
 
-    // 车间名称映射
+    /** 与调度端、车间用户部门命名一致：第几车间 */
     private static final Map<Long, String> WORKSHOP_NAMES = new HashMap<>();
     static {
-        WORKSHOP_NAMES.put(1L, "生产一车间");
-        WORKSHOP_NAMES.put(2L, "生产二车间");
-        WORKSHOP_NAMES.put(3L, "装配车间");
-        WORKSHOP_NAMES.put(4L, "仓储车间");
+        WORKSHOP_NAMES.put(1L, "第一车间");
+        WORKSHOP_NAMES.put(2L, "第二车间");
+        WORKSHOP_NAMES.put(3L, "第三车间");
+        WORKSHOP_NAMES.put(4L, "第四车间");
     }
 
     /**

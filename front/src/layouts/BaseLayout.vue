@@ -4,7 +4,7 @@
     <aside class="sidebar" :class="{ collapsed: isCollapse }">
       <div class="sidebar-logo">
         <div class="logo-icon">⚡</div>
-        <span v-show="!isCollapse" class="logo-text">电能监控平台</span>
+        <span v-show="!isCollapse" class="logo-text">企业电能管理平台</span>
       </div>
       <nav class="sidebar-menu">
         <slot name="menu"></slot>

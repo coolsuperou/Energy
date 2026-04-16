@@ -65,7 +65,7 @@
           <div class="ranking-list" v-if="workshopRanking.length">
             <div class="ranking-item" v-for="(item, index) in workshopRanking" :key="item.workshopId">
               <span class="ranking-badge" :class="getRankClass(index)">{{ index + 1 }}</span>
-              <span class="ranking-name">{{ item.workshopName }}</span>
+              <span class="ranking-name">{{ workshopLabel(item.workshopId) }}</span>
               <div class="ranking-bar-wrapper">
                 <div class="ranking-bar" :style="{ width: getBarWidth(item.energy) + '%' }"></div>
               </div>
@@ -117,7 +117,7 @@
             <i class="bi bi-lightbulb"></i>
             <div class="suggestion-content">
               <h6>关注高能耗车间</h6>
-              <p>{{ workshopRanking[0]?.workshopName }} 今日能耗最高（{{ formatNumber(workshopRanking[0]?.energy) }} kWh），建议优化用电时段分配</p>
+              <p>{{ workshopLabel(workshopRanking[0]?.workshopId) }} 今日能耗最高（{{ formatNumber(workshopRanking[0]?.energy) }} kWh），建议优化用电时段分配</p>
             </div>
           </div>
           <div class="ai-suggestion">
@@ -164,6 +164,16 @@ let trendChart = null
 
 // 计算排名最大值用于进度条
 const maxEnergy = ref(0)
+
+const CN_WORKSHOP = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+
+function workshopLabel(workshopId) {
+  if (workshopId == null || workshopId === '') return '—'
+  const n = Number(workshopId)
+  if (!Number.isFinite(n)) return `车间 ${workshopId}`
+  if (n >= 1 && n <= 10) return `第${CN_WORKSHOP[n - 1]}车间`
+  return `第${n}车间`
+}
 
 function formatNumber(num) {
   if (!num) return '0'

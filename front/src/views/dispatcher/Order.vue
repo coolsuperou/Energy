@@ -112,7 +112,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="位置" required>
-          <el-input v-model="createDialog.form.location" placeholder="如：生产一车间-配电室" />
+          <el-input v-model="createDialog.form.location" placeholder="如：第一车间-配电室" />
         </el-form-item>
         <el-form-item label="问题描述" required>
           <el-input v-model="createDialog.form.description" type="textarea" :rows="3" placeholder="请描述问题" />

@@ -192,10 +192,10 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as echarts from 'echarts'
 import { getEnergyDataByRange, getEnergySummary, getCostTrend } from '@/api/energy'
 
-const workshopNameMap = { 1: '生产一车间', 2: '生产二车间', 3: '装配车间', 4: '仓储车间' }
+const workshopNameMap = { 1: '第一车间', 2: '第二车间', 3: '第三车间', 4: '第四车间' }
 const workshops = [
-  { id: 1, name: '生产一车间' }, { id: 2, name: '生产二车间' },
-  { id: 3, name: '装配车间' }, { id: 4, name: '仓储车间' }
+  { id: 1, name: '第一车间' }, { id: 2, name: '第二车间' },
+  { id: 3, name: '第三车间' }, { id: 4, name: '第四车间' }
 ]
 const periodLabel = { PEAK: '峰时', NORMAL: '平时', VALLEY: '谷时' }
 
