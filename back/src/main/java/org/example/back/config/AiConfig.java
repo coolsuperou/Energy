@@ -22,8 +22,8 @@ public class AiConfig {
     private String apiSecret;
     
     /** WebSocket API 地址 */
-    private String hostUrl = "wss://spark-api.xf-yun.com/v1/x1";
+    private String hostUrl = "wss://spark-api.xf-yun.com/v4.0/chat";
     
     /** 模型域名 */
-    private String domain = "spark-x";
+    private String domain = "4.0Ultra";
 }

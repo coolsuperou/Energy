@@ -257,10 +257,6 @@ public class AiService {
             chat.put("temperature", 0.5);
             chat.put("max_tokens", 4096);
 
-            // 关闭深度思考，加快响应速度
-            var thinking = chat.putObject("thinking");
-            thinking.put("type", "disabled");
-
             // payload.message.text
             var payload = root.putObject("payload");
             var message = payload.putObject("message");

@@ -195,20 +195,40 @@ public class AiController {
                 break;
                 
             case "forecast":
-                prompt.append("【用电趋势预测任务】\n\n");
-                prompt.append("请基于以下历史数据，预测未来用电趋势：\n\n");
+                prompt.append("【未来7天用电趋势预测任务】\n\n");
+                prompt.append("请基于以下历史数据，预测未来 7 天的每日用电量趋势：\n\n");
                 prompt.append("=== 近期用电数据 ===\n");
                 prompt.append(String.format("- 今日用电量：%.2f kWh\n", todayTotalEnergy));
                 prompt.append(String.format("- 本月累计用电量：%.2f kWh（截至今日）\n", monthTotalEnergy));
                 prompt.append(String.format("- 本月已过天数：%d 天\n", today.getDayOfMonth()));
                 prompt.append(String.format("- 日均用电量：%.2f kWh\n", monthTotalEnergy / today.getDayOfMonth()));
                 prompt.append(String.format("- 各车间数据：%s\n\n", todayStats.get("stats")));
+                // 计算未来7天日期标签（明日起）
+                StringBuilder dateLabels = new StringBuilder();
+                for (int i = 1; i <= 7; i++) {
+                    if (i > 1) dateLabels.append("\", \"");
+                    dateLabels.append(today.plusDays(i).toString());
+                }
                 prompt.append("请从以下方面进行预测和预警：\n");
-                prompt.append("1. 本月剩余天数用电量预测\n");
-                prompt.append("2. 本月总用电量和电费预估\n");
-                prompt.append("3. 是否可能超出月度配额\n");
-                prompt.append("4. 用电高峰期预警\n");
-                prompt.append("5. 建议采取的预防措施\n");
+                prompt.append("1. 未来 7 天每日用电量预测（含工作日/休息日差异）\n");
+                prompt.append("2. 7 天累计用电量与电费预估\n");
+                prompt.append("3. 是否可能出现用电高峰日及其原因\n");
+                prompt.append("4. 用电波动趋势分析\n");
+                prompt.append("5. 针对预测结果的运行调度建议\n\n");
+                prompt.append("=== 输出格式要求（必须严格遵守） ===\n");
+                prompt.append("请先用自然语言给出预测分析，然后**必须输出一个 ECharts 图表配置**，使用 ```echarts 代码块包裹，格式如下：\n\n");
+                prompt.append("```echarts\n");
+                prompt.append("{\n");
+                prompt.append("  \"title\": { \"text\": \"未来7天每日用电量预测\", \"left\": \"center\" },\n");
+                prompt.append("  \"tooltip\": { \"trigger\": \"axis\" },\n");
+                prompt.append("  \"legend\": { \"bottom\": 0 },\n");
+                prompt.append("  \"grid\": { \"left\": 50, \"right\": 30, \"bottom\": 60, \"top\": 50 },\n");
+                prompt.append("  \"xAxis\": { \"type\": \"category\", \"data\": [\"").append(dateLabels).append("\"] },\n");
+                prompt.append("  \"yAxis\": { \"type\": \"value\", \"name\": \"kWh\" },\n");
+                prompt.append("  \"series\": [{ \"name\": \"预测用电量\", \"type\": \"line\", \"smooth\": true, \"data\": [<日1>, <日2>, <日3>, <日4>, <日5>, <日6>, <日7>], \"itemStyle\": { \"color\": \"#7c3aed\" }, \"areaStyle\": { \"color\": \"rgba(124,58,237,0.15)\" }, \"label\": { \"show\": true, \"position\": \"top\" } }]\n");
+                prompt.append("}\n");
+                prompt.append("```\n\n");
+                prompt.append("严格要求：JSON 必须可被 JSON.parse 解析；series.data 必须是包含 7 个纯数字的数组（基于日均用电量并结合工作日/休息日合理波动进行推算，不要带单位或文字）；xAxis.data 必须保持上面给出的 7 个日期不变；代码块必须以 ```echarts 开头、以 ``` 结尾；图表后可继续补充文字说明。\n");
                 break;
                 
             default:

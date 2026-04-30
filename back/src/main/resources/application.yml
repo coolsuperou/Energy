@@ -55,8 +55,8 @@ ai:
     app-id: ab3cd651
     api-key: c5f832a4b473cdcde7688cee1b7cb248
     api-secret: OGIyMTNiMmRmZmYzM2M4MjJjNjE2ZWIx
-    host-url: wss://spark-api.xf-yun.com/v1/x1
-    domain: spark-x
+    host-url: wss://spark-api.xf-yun.com/v4.0/chat
+    domain: 4.0Ultra
 
 # 日志配置
 logging:

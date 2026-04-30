@@ -151,15 +151,12 @@ public class InspectorController {
 
     /**
      * 获取今日待完成任务列表
-     * 截止日期≤今天的未完成任务
+     * 显示当前巡检员所有未完成（待处理/进行中）的任务，按截止日期升序、优先级降序，最多10条
      */
     private List<Task> getTodayTasks(Long userId) {
-        LocalDate today = LocalDate.now();
-        
         LambdaQueryWrapper<Task> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Task::getAssignedTo, userId);
         wrapper.in(Task::getStatus, TaskStatus.PENDING, TaskStatus.IN_PROGRESS);
-        wrapper.and(w -> w.isNull(Task::getDueDate).or().le(Task::getDueDate, today));
         wrapper.orderByAsc(Task::getDueDate);
         wrapper.orderByDesc(Task::getPriority);
         wrapper.last("LIMIT 10");
