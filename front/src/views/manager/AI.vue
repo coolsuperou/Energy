@@ -142,8 +142,12 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onBeforeUnmount } from 'vue'
+import * as echarts from 'echarts'
 import { aiChatStream, aiAnalyzeEnergyStream } from '@/api/ai'
+
+// 图表实例缓存：DOM元素 -> { instance, hash }
+const chartCache = new WeakMap()
 
 const messages = ref([])
 const inputMessage = ref('')
@@ -179,9 +183,28 @@ function scrollToBottom() {
   })
 }
 
+// base64 编码（兼容中文）
+function b64encode(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+}
+function b64decode(str) {
+  return decodeURIComponent(escape(atob(str)))
+}
+
 function renderMarkdown(text) {
   if (!text) return ''
-  return text
+  let out = text
+  // 1. 提取已闭合的 ```echarts ... ``` 代码块，替换为图表占位 div
+  out = out.replace(/```echarts\s*\n([\s\S]*?)```/g, (m, json) => {
+    const trimmed = json.trim()
+    const b64 = b64encode(trimmed)
+    return `<div class="ai-chart-block" data-option="${b64}" data-hash="${b64.length}-${b64.slice(0,12)}"></div>`
+  })
+  // 2. 流式过程中尚未闭合的 ```echarts 块：用占位提示替换，避免显示原始 JSON
+  if (/```echarts[\s\S]*$/.test(out)) {
+    out = out.replace(/```echarts[\s\S]*$/, '<div class="ai-chart-loading"><i class="bi bi-bar-chart-line"></i> 图表生成中...</div>')
+  }
+  return out
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br>')
@@ -189,6 +212,52 @@ function renderMarkdown(text) {
     .replace(/#{2}\s?(.*?)(<br>|$)/g, '<h3>$1</h3>')
     .replace(/#{1}\s?(.*?)(<br>|$)/g, '<h3>$1</h3>')
 }
+
+// 渲染消息中的 ECharts 图表
+function renderCharts() {
+  if (!messagesRef.value) return
+  const blocks = messagesRef.value.querySelectorAll('.ai-chart-block')
+  blocks.forEach(el => {
+    if (el.dataset.failed === '1') return
+    const optionStr = el.getAttribute('data-option')
+    const hash = el.getAttribute('data-hash')
+    if (!optionStr) return
+    const cached = chartCache.get(el)
+    if (cached && cached.hash === hash) return
+    try {
+      const option = JSON.parse(b64decode(optionStr))
+      // 关闭动画，避免流式过程中元素重建导致的闪烁
+      option.animation = false
+      // v-html 重渲染会替换 DOM 元素，已绑定的实例随之失效
+      let inst = echarts.getInstanceByDom(el)
+      if (!inst) {
+        inst = echarts.init(el)
+      }
+      inst.setOption(option, true)
+      chartCache.set(el, { instance: inst, hash })
+    } catch (e) {
+      el.dataset.failed = '1'
+      el.innerHTML = '<div class="ai-chart-error">⚠️ 图表渲染失败：JSON 解析错误</div>'
+    }
+  })
+}
+
+function scheduleChartRender() {
+  nextTick(renderCharts)
+}
+
+// 窗口尺寸变化时自适应图表
+function handleResize() {
+  if (!messagesRef.value) return
+  messagesRef.value.querySelectorAll('.ai-chart-block').forEach(el => {
+    const cached = chartCache.get(el)
+    if (cached?.instance) cached.instance.resize()
+  })
+}
+window.addEventListener('resize', handleResize)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 function sendMessage() {
   const text = inputMessage.value.trim()
@@ -203,8 +272,8 @@ function sendMessage() {
   const msgIndex = messages.value.length - 1
 
   currentEs = aiChatStream(text,
-    (chunk) => { messages.value[msgIndex].content += chunk; scrollToBottom() },
-    () => { messages.value[msgIndex].time = getNow(); loading.value = false; currentEs = null; scrollToBottom() },
+    (chunk) => { messages.value[msgIndex].content += chunk; scrollToBottom(); scheduleChartRender() },
+    () => { messages.value[msgIndex].time = getNow(); loading.value = false; currentEs = null; scrollToBottom(); scheduleChartRender() },
     (err) => { if (!messages.value[msgIndex].content) messages.value[msgIndex].content = '抱歉，分析请求失败：' + err; loading.value = false; currentEs = null; scrollToBottom() }
   )
 }
@@ -221,8 +290,8 @@ function quickAnalyze(type) {
   const msgIndex = messages.value.length - 1
 
   currentEs = aiAnalyzeEnergyStream(type, null,
-    (chunk) => { messages.value[msgIndex].content += chunk; scrollToBottom() },
-    () => { messages.value[msgIndex].time = getNow(); loading.value = false; currentEs = null; scrollToBottom() },
+    (chunk) => { messages.value[msgIndex].content += chunk; scrollToBottom(); scheduleChartRender() },
+    () => { messages.value[msgIndex].time = getNow(); loading.value = false; currentEs = null; scrollToBottom(); scheduleChartRender() },
     (err) => { if (!messages.value[msgIndex].content) messages.value[msgIndex].content = '抱歉，能耗分析失败：' + err; loading.value = false; currentEs = null; scrollToBottom() }
   )
 }
@@ -309,4 +378,12 @@ function askQuestion(q) {
   .side-panel { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .side-card { flex: 1; min-width: 200px; }
 }
+</style>
+
+<!-- 非 scoped：用于 v-html 动态插入的 ECharts 占位元素 -->
+<style>
+.ai-chart-block { width: 100%; height: 320px; margin: 12px 0; padding: 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+.ai-chart-loading { padding: 16px; margin: 12px 0; text-align: center; color: #7c3aed; background: #faf5ff; border: 1px dashed #c4b5fd; border-radius: 8px; font-size: 13px; }
+.ai-chart-loading i { margin-right: 6px; }
+.ai-chart-error { padding: 12px; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; }
 </style>
